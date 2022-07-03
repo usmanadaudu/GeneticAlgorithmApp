@@ -39,41 +39,39 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         StopatGenerationEditField      matlab.ui.control.NumericEditField
     end
 
-    
     properties (Access = private)
         Err =  [0 0 0 1]; % variable for tracking errors
         ChromNumErr = 1;  % index of Err corresponding to no of chromosomes error
         FuncErr = 2;      % index of Err corresponding to function error
         FlNmErr = 3;      % index of Err corresponding to filename error
         FlLcErr = 4;      % index of Err corresponding to file location error
-        Rng               %ranges for strings
-        LastRng           %last valid user input for ranges 
+        Rng               % ranges for strings
+        LastRng           % last valid user input for ranges 
     end
-    
 
     % Callbacks that handle component events
     methods (Access = private)
 
         % Code that executes after component creation
         function startupFcn(app)
-            app.GeneticAlgorithmUIFigure.Visible = 'off';
+            app.GeneticAlgorithmUIFigure.Visible = 'off'; % make the figure not visible while startupFcn executes
             app.TypeofValuesDropDown.ItemsData =  [1 2];
             bits = app.BitsPerStringEditField.Value;
-            app.DecimalPlacesEditField.Limits = [0 bits];
-            app.Rng = repmat([1 10],app.StringsPerChromosomeEditField.Value,1);
+            app.DecimalPlacesEditField.Limits = [0 bits]; % set upper limit of decimal places to number of bits
+            app.Rng = repmat([1 10],app.StringsPerChromosomeEditField.Value,1); % set ranges to default 1-10 values
             randInitPop = app.UseRandomInitialPopulationButton.Value;
-            if randInitPop
+            if randInitPop % if UseRandomInitialPopulationButton is set
                 app.SetinitialPopulationButton.Enable = 0;
             else
                 app.SetinitialPopulationButton.Enable = 1;
             end
-            if (app.TypeofValuesDropDown.Value == 2)
+            if (app.TypeofValuesDropDown.Value == 2) % if dropdown value is real (2)
                 app.DecimalPlacesEditField.Enable = 1;
             else
                 app.DecimalPlacesEditField.Enable = 0;
             end
-            app.Err(app.FlLcErr) = isempty(app.OutputFileLocationEditField.Value);
-            if any(app.Err) %Check for errors
+            app.Err(app.FlLcErr) = isempty(app.OutputFileLocationEditField.Value); % errorcheck OutputFileLocationEditField
+            if any(app.Err) %Check for any errors
                 %Disable Generate Button
                 app.GenerateButton.Enable = 0;
             else
@@ -81,13 +79,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.GenerateButton.Enable = 1;
             end
             movegui(app.GeneticAlgorithmUIFigure,'center')
-            app.GeneticAlgorithmUIFigure.Visible = 'on';
+            app.GeneticAlgorithmUIFigure.Visible = 'on'; % make figure visible
         end
 
         % Value changed function: NumberofChromosomesEditField
         function NumberofChromosomesEditFieldValueChanged(app, event)
             value = app.NumberofChromosomesEditField.Value;
-            if mod(value,2) ~= 0
+            if mod(value,2) ~= 0 % check if Number of Chromosomes is even
                 app.NumberofChromosomesEditField.BackgroundColor = '#EDB120';
                 app.Err(app.ChromNumErr) = 1;
             else
@@ -100,13 +98,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         % Value changed function: BitsPerStringEditField
         function BitsPerStringCheck(app, event)
             value = app.BitsPerStringEditField.Value;
-            app.DecimalPlacesEditField.Limits = [0 value];
+            app.DecimalPlacesEditField.Limits = [0 value]; % set upper limit of decimal places to number of bits
         end
 
         % Value changed function: UseRandomInitialPopulationButton
         function UseRandomInitialPopulationButtonCheck(app, event)
             value = app.UseRandomInitialPopulationButton.Value;
-            if value
+            if value % check if UseRandomInitialPopulationButton is set
                 app.SetinitialPopulationButton.Enable = 0;
             else
                 app.SetinitialPopulationButton.Enable = 1;
@@ -116,12 +114,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         % Value changing function: OutputFilenameEditField
         function OutputFilenameEditFieldValueChanging(app, event)
             changingValue = app.OutputFilenameEditField.Value;
-            loc = app.OutputFileLocationEditField.Value;
+            loc = app.OutputFileLocationEditField.Value; % output file location
             if (isempty(changingValue))
                 app.OutputFilenameEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlNmErr) = 1;
                 app.OutputFilenameEditField.Tooltip = 'Filename cannot be empty';
-            elseif isfile([loc '\' changingValue '.txt'])
+            elseif isfile([loc '\' changingValue '.txt']) % check if a file with given name exists in the specified directory
                 app.OutputFilenameEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlNmErr) = 1;
                 app.OutputFilenameEditField.Tooltip = 'Text file with same name exists in the specified folder';
@@ -140,7 +138,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
                 app.OutputFileLocationEditField.Tooltip = 'File location cannot be empty';
-            elseif ~isfolder(changingValue)
+            elseif ~isfolder(changingValue) % check if specified value is a valid directory
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
                 app.OutputFileLocationEditField.Tooltip = 'Specified directory could not be found';
@@ -149,7 +147,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.Err(app.FlLcErr) = 0;
                 app.OutputFileLocationEditField.Tooltip = '';
             end
-            OutputFilenameEditFieldValueChanging(app, event);
+            OutputFilenameEditFieldValueChanging(app, event); % errorcheck output filename
             verifyVals(app, event);
         end
 
@@ -160,7 +158,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
                 app.OutputFileLocationEditField.Tooltip = 'File location cannot be empty';
-            elseif ~isfolder(value)
+            elseif ~isfolder(value) % check if specified value is a valid directory
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
                 app.OutputFileLocationEditField.Tooltip = 'Specified directory could not be found';
@@ -169,24 +167,18 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.Err(app.FlLcErr) = 0;
                 app.OutputFileLocationEditField.Tooltip = '';
             end
-            OutputFilenameEditFieldValueChanging(app, event);
+            OutputFilenameEditFieldValueChanging(app, event); % errorcheck output filename
             verifyVals(app, event);
         end
 
         % Button pushed function: BrowseButton
         function BrowseButtonPushed(app, event)
-            dir = uigetdir;
+            dir = uigetdir; % displays UI to set directory
             if dir
                 app.OutputFileLocationEditField.Value = dir;
             end
-            if (~isempty(app.OutputFileLocationEditField.Value))
-                app.OutputFileLocationEditField.BackgroundColor = '#FFFFFF';
-                app.Err(app.FlLcErr) = 0;
-            else
-                app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
-                app.Err(app.FlLcErr) = 1;
-            end
-            OutputFilenameEditFieldValueChanging(app, event);
+            OutputFilenameEditFieldValueChanging(app, event); % errorcheck output filename
+            OutputFileLocationEditFieldValueChanged(app, event); % errorcheck output file location
             verifyVals(app, event);
         end
 
@@ -210,7 +202,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         % Value changed function: TypeofValuesDropDown
         function TypeofValuesDropDownValueChanged(app, event)
             value = app.TypeofValuesDropDown.Value;
-            if (value == 2)
+            if (value == 2) % if dropdown value is real (2)
                 app.DecimalPlacesEditField.Enable = 1;
             else
                 app.DecimalPlacesEditField.Enable = 0;
@@ -219,19 +211,20 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
         % Button pushed function: SetRangesDefault010Button
         function SetRangesDefault010ButtonPushed(app, event)
-            strNum = app.StringsPerChromosomeEditField.Value;
-            if isempty(app.Rng)
+            strNum = app.StringsPerChromosomeEditField.Value; % get number of strings
+            if isempty(app.Rng) % if ranges is not set use default values
                 app.Rng = repmat([1 10],strNum,1);
             end
-            if isempty(app.LastRng)
+            if isempty(app.LastRng) % if there are no last valid values use default values
                 app.LastRng = repmat([1 10],strNum,1);
             end
-            valErr = 0;
+            valErr = 0; % variable for tracking error in this function
+            % create UI figure (uf) to set ranges but do not show till setup finishes
             uf = uifigure('Name','Ranges','Position',[100 100 560 420],'Scrollable','on','Visible','off');
-            cellA = ACell();
-            labelmsg = "Input values in each row for the respective strings."+...
-                " Format: min max";
-            uilabel(uf,'Position',[56 356 448 22],'Text',labelmsg);
+            cellA = ACell(); % set each line (range) in ranges as a string in cell array cellA
+            labelmsg = sprintf("Input values in each row for the respective strings."+...
+                "\nFormat: min max");
+            uilabel(uf,'Position',[56 356 448 28],'Text',labelmsg);
             input = uitextarea(uf,'Position',[56 42 224 294],...
                 'Value',cellA);
             uibutton(uf,'push','Text','Use Default Values',....
@@ -244,18 +237,28 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 'Position',[336 84 168 22],'BackgroundColor','#4DBEEE',...
                 'ButtonPushedFcn',@(btn,event) checkVal());
             movegui(uf,'center')
-            uf.Visible = 'on';
+            uf.Visible = 'on'; % show the figure
             function cellA = ACell
-            cellA = cell(size(app.Rng,1),1);
+                %This function stores each set of ranges in app.Rng as a
+                %string in the output cell array (cellA)
+                cellA = cell(size(app.Rng,1),1);
                 for row = 1:length(cellA)
                     cellA{row} = num2str(app.Rng(row,:));
                 end
             end
             function ResetVal(val)
+                % This function sets the values of the ranges as the
+                % default value if val is 1 or to the last valid values
+                % if val is 2
+                value = app.StringsPerChromosomeEditField.Value;
                 if val == 1
                     app.Rng = repmat([1 10],strNum,1);
                 elseif val == 2
-                    app.Rng = app.LastRng;
+                    if size(app.LastRng,1) < value
+                        app.Rng = [app.LastRng; repmat([1 10],value-size(app.LastRng,1),1)];
+                    elseif size(app.LastRng,1) > value
+                        app.Rng = app.LastRng(1:value,:);
+                    end
                 end
                 cellA = ACell();
                 input.Value = cellA;
@@ -263,35 +266,38 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 %final()
             end
             function checkVal
-                if size(input.Value,1) ~= strNum
+                if size(input.Value,1) ~= strNum % check if number of rows in input is not equal to number of strings
                     uialert(uf,'There are '+string(size(input.Value,1))+...
                         ' values. There should be '+string(strNum)+' ranges','Error')
                     input.BackgroundColor = '#EDB120';
                 else
                     cellAScan = cell(size(input.Value,1),2);
                     for i = 1:size(input.Value,1)
+                        % expr is a regular expression to check if each
+                        % line of input contains exactly two numbers
+                        % separated by one or more space characters
                         expr = '([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)';
-                        [start,last] = regexp(strip(input.Value{i}),expr);
-                        if isempty(start) && isempty(last)
+                        [start,last] = regexp(strip(input.Value{i}),expr); % remove leading and trailing spaces then check if current line matches expr
+                        if isempty(start) && isempty(last) % current line does not match expr
                             alertmsg{2,1} = 'min and max should be integers separated by space';
                             alertmsg{1,1} = 'Input format: min max';
                             uialert(uf,alertmsg,'Error')
                             valErr = 1;
                             input.BackgroundColor = '#EDB120';
                             break
-                        elseif (start == 1 && last == length(strip(input.Value{i})))
-                            cellAScan(i,:) = textscan(input.Value{i},'%f %f');
-                            if ~(cellAScan{i,1} <= cellAScan{i,2})
+                        elseif (start == 1 && last == length(strip(input.Value{i}))) % current line matches expr exactly
+                            cellAScan(i,:) = textscan(input.Value{i},'%f %f'); % capture the two numbers into respective columns in cellAScan
+                            if ~(cellAScan{i,1} <= cellAScan{i,2}) % first number (min) is greater than the second number (max)
                                 alertmsg = 'Each min should not be greater than the respective max';
                                 uialert(uf,alertmsg,'Error')
                                 valErr = 1;
                                 input.BackgroundColor = '#EDB120';
                                 break
-                            else
+                            else % first number (min) is lesser than or equal to the second number (max)
                                 valErr = 0;
                                 input.BackgroundColor = '#fff';
                             end
-                        else
+                        else % current line matches expr partly
                             alertmsg{2,1} = 'min and max should be two integers separated by space';
                             alertmsg{1,1} = 'Input format: min max';
                             uialert(uf,alertmsg,'Error')
@@ -300,31 +306,30 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             break
                         end
                     end
-                    if ~valErr
-                        app.Rng = cell2mat(cellAScan);
-                        final()
+                    if ~valErr % if no error occurs
+                        app.Rng = cell2mat(cellAScan); % update the values of the ranges (app.Rng)
+                        final();
                     end
                 end
             end
             function final
                 input.BackgroundColor = '#fff';
-                if ~isequal(app.Rng,repmat([1 10],strNum,1))
-                    app.LastRng = app.Rng;
+                if ~isequal(app.Rng,repmat([1 10],strNum,1)) % if current value for ranges is not the default values
+                    app.LastRng = app.Rng; % update app.LastRng to the current values of ranges
                 end
-                close(uf);
-                %disp(app.Rng)
+                close(uf); % close figure for setting ranges
             end
         end
 
         % Value changed function: StringsPerChromosomeEditField
         function StringsPerChromosomeEditFieldValueChanged(app, event)
             value = app.StringsPerChromosomeEditField.Value;
-            if size(app.Rng,1) < value
-                app.Rng = [app.Rng; repmat([1 10],value-size(app.Rng,1),1)];
-                app.LastRng = [app.LastRng; repmat([1 10],value-size(app.LastRng,1),1)];
-            elseif size(app.Rng,1) > value
-                app.Rng = app.Rng(1:value,:);
-                app.LastRng = app.LastRng(1:value,:);
+            if size(app.Rng,1) < value % if set of ranges is lesser than number of strings
+                app.Rng = [app.Rng; repmat([1 10],value-size(app.Rng,1),1)]; % pad app.Rng with default values to the length (rows) equal to number of strings
+                %app.LastRng = [app.LastRng; repmat([1 10],value-size(app.LastRng,1),1)]; % pad app.LastRng with default values to the length (rows) equal to number of strings
+            elseif size(app.Rng,1) > value % if set of ranges is greater than number of strings
+                app.Rng = app.Rng(1:value,:); % trim app.Rng to make length (rows) equal to number of strings
+                %app.LastRng = app.LastRng(1:value,:); % trim app.LastRng to make length (rows) equal to number of strings
             end
         end
     end
