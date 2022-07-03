@@ -60,6 +60,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.TypeofValuesDropDown.ItemsData =  [1 2];
             bits = app.BitsPerStringEditField.Value;
             app.DecimalPlacesEditField.Limits = [0 bits];
+            app.Rng = repmat([1 10],app.StringsPerChromosomeEditField.Value,1);
             randInitPop = app.UseRandomInitialPopulationButton.Value;
             if randInitPop
                 app.SetinitialPopulationButton.Enable = 0;
@@ -114,13 +115,20 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
         % Value changing function: OutputFilenameEditField
         function OutputFilenameEditFieldValueChanging(app, event)
-            changingValue = event.Value;
-            if (~isempty(changingValue))
-                app.OutputFilenameEditField.BackgroundColor = '#FFFFFF';
-                app.Err(app.FlNmErr) = 0;
-            else
+            changingValue = app.OutputFilenameEditField.Value;
+            loc = app.OutputFileLocationEditField.Value;
+            if (isempty(changingValue))
                 app.OutputFilenameEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlNmErr) = 1;
+                app.OutputFilenameEditField.Tooltip = 'Filename cannot be empty';
+            elseif isfile([loc '\' changingValue '.txt'])
+                app.OutputFilenameEditField.BackgroundColor = '#EDB120';
+                app.Err(app.FlNmErr) = 1;
+                app.OutputFilenameEditField.Tooltip = 'Text file with same name exists in the specified folder';
+            else
+                app.OutputFilenameEditField.BackgroundColor = '#FFFFFF';
+                app.Err(app.FlNmErr) = 0;
+                app.OutputFilenameEditField.Tooltip = '';
             end
             verifyVals(app, event);
         end
@@ -128,26 +136,40 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         % Value changing function: OutputFileLocationEditField
         function OutputFileLocationEditFieldValueChanging(app, event)
             changingValue = event.Value;
-            if (~isempty(changingValue))
-                app.OutputFileLocationEditField.BackgroundColor = '#FFFFFF';
-                app.Err(app.FlLcErr) = 0;
-            else
+            if isempty(changingValue)
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
+                app.OutputFileLocationEditField.Tooltip = 'File location cannot be empty';
+            elseif ~isfolder(changingValue)
+                app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
+                app.Err(app.FlLcErr) = 1;
+                app.OutputFileLocationEditField.Tooltip = 'Specified directory could not be found';
+            else
+                app.OutputFileLocationEditField.BackgroundColor = '#FFFFFF';
+                app.Err(app.FlLcErr) = 0;
+                app.OutputFileLocationEditField.Tooltip = '';
             end
+            OutputFilenameEditFieldValueChanging(app, event);
             verifyVals(app, event);
         end
 
         % Value changed function: OutputFileLocationEditField
         function OutputFileLocationEditFieldValueChanged(app, event)
             value = app.OutputFileLocationEditField.Value;
-            if (~isempty(value))
-                app.OutputFileLocationEditField.BackgroundColor = '#FFFFFF';
-                app.Err(app.FlLcErr) = 0;
-            else
+            if isempty(value)
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
+                app.OutputFileLocationEditField.Tooltip = 'File location cannot be empty';
+            elseif ~isfolder(value)
+                app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
+                app.Err(app.FlLcErr) = 1;
+                app.OutputFileLocationEditField.Tooltip = 'Specified directory could not be found';
+            else
+                app.OutputFileLocationEditField.BackgroundColor = '#FFFFFF';
+                app.Err(app.FlLcErr) = 0;
+                app.OutputFileLocationEditField.Tooltip = '';
             end
+            OutputFilenameEditFieldValueChanging(app, event);
             verifyVals(app, event);
         end
 
@@ -164,6 +186,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.OutputFileLocationEditField.BackgroundColor = '#EDB120';
                 app.Err(app.FlLcErr) = 1;
             end
+            OutputFilenameEditFieldValueChanging(app, event);
             verifyVals(app, event);
         end
 
@@ -292,6 +315,18 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 %disp(app.Rng)
             end
         end
+
+        % Value changed function: StringsPerChromosomeEditField
+        function StringsPerChromosomeEditFieldValueChanged(app, event)
+            value = app.StringsPerChromosomeEditField.Value;
+            if size(app.Rng,1) < value
+                app.Rng = [app.Rng; repmat([1 10],value-size(app.Rng,1),1)];
+                app.LastRng = [app.LastRng; repmat([1 10],value-size(app.LastRng,1),1)];
+            elseif size(app.Rng,1) > value
+                app.Rng = app.Rng(1:value,:);
+                app.LastRng = app.LastRng(1:value,:);
+            end
+        end
     end
 
     % Component initialization
@@ -384,6 +419,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.StringsPerChromosomeEditField.Limits = [0 Inf];
             app.StringsPerChromosomeEditField.RoundFractionalValues = 'on';
             app.StringsPerChromosomeEditField.ValueDisplayFormat = '%.0f';
+            app.StringsPerChromosomeEditField.ValueChangedFcn = createCallbackFcn(app, @StringsPerChromosomeEditFieldValueChanged, true);
+            app.StringsPerChromosomeEditField.Tooltip = {'New ranges would be added or excess ranges removed if the current set of ranges is less or more than this value'};
             app.StringsPerChromosomeEditField.Position = [203 448 60 22];
             app.StringsPerChromosomeEditField.Value = 5;
 
