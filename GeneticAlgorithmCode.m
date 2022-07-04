@@ -376,7 +376,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 % raise error otherwise continue to else
                 if size(input.Value,1) ~= strNum
                     uialert(uf,'There are '+string(size(input.Value,1))+...
-                        ' values. There should be '+string(strNum)+' ranges','Error')
+                        ' sets of values. There should be '+string(strNum)+...
+                        ' sets of ranges','Error')
                     input.BackgroundColor = '#EDB120';
                 else
                     % Empty 2-column cell array with rows equal to length
