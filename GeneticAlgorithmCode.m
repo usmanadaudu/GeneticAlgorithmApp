@@ -206,7 +206,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         function BrowseButtonPushed(app, event)
             
             % displays UI to set directory
-            dir = uigetdir;
+            dir = uigetdir('C:\','Select Ouput File Location');
             
             % Set file location to directory if it is not empty
             if dir
