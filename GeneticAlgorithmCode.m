@@ -1,4 +1,4 @@
-classdef GeneticAlgorithmCode < matlab.apps.AppBase
+classdef GeneticAlgorithm < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -66,7 +66,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.DecimalPlacesEditField.Limits = [0 bits];
             
             % Set ranges to default 1-10 values
-            app.Rng = repmat([1 10],app.StringsPerChromosomeEditField.Value,1);
+            app.Rng = repmat([0 10],app.StringsPerChromosomeEditField.Value,1);
             
             % Disable setting initial population if population is set to
             % random otherwise enable
@@ -353,12 +353,14 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 % if val is 2
                 value = app.StringsPerChromosomeEditField.Value;
                 if val == 1
-                    app.Rng = repmat([1 10],strNum,1);
+                    app.Rng = repmat([0 10],strNum,1);
                 elseif val == 2
                     if size(app.LastRng,1) < value
-                        app.Rng = [app.LastRng; repmat([1 10],value-size(app.LastRng,1),1)];
+                        app.Rng = [app.LastRng; repmat([0 10],value-size(app.LastRng,1),1)];
                     elseif size(app.LastRng,1) > value
                         app.Rng = app.LastRng(1:value,:);
+                    else
+                        app.Rng = app.LastRng;
                     end
                 end
                 
@@ -437,7 +439,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 
                 % If current value for ranges is not the default values
                 % update app.LastRng to the current values of ranges
-                if ~isequal(app.Rng,repmat([1 10],strNum,1))
+                if ~isequal(app.Rng,repmat([0 10],strNum,1))
                     app.LastRng = app.Rng;
                 end
                 
@@ -709,7 +711,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = GeneticAlgorithmCode
+        function app = GeneticAlgorithm
 
             % Create UIFigure and components
             createComponents(app)
