@@ -1,4 +1,4 @@
-classdef GeneticAlgorithm < matlab.apps.AppBase
+classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -711,7 +711,7 @@ classdef GeneticAlgorithm < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = GeneticAlgorithm
+        function app = GeneticAlgorithmCode
 
             % Create UIFigure and components
             createComponents(app)
