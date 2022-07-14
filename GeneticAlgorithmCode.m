@@ -30,14 +30,46 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         GenerationLabel                matlab.ui.control.Label
         StopatGenerationLabel          matlab.ui.control.Label
         StopatGenerationEditField      matlab.ui.control.NumericEditField
+        SelectionLabel                 matlab.ui.control.Label
+        ButtonGroup_2                  matlab.ui.container.ButtonGroup
+        RolletteWheelButton            matlab.ui.control.RadioButton
+        ElitismButton                  matlab.ui.control.RadioButton
     end
 
     properties (Access = private)
         Err =  [0 1];     % variable for tracking errors
         ChromNumErr = 1;  % index of Err corresponding to no of chromosomes error
-        FuncErr = 2;      % index of Err corresponding to function error
+        RngErr = 2;       % index of Err corresponding to Range error
+        PopErr = 3;       % index of Err corresponding to Population error
+        FuncErr = 4;      % index of Err corresponding to function error
         Rng               % ranges for strings
         LastRng           % last valid user input for ranges 
+    end
+    
+    methods (Access = private)
+        
+        function RngPopErr(app)
+            
+            % Raise error for Range
+            app.SetRangesDefault010Button.BackgroundColor = '#EDB120';
+            app.Err(app.RngErr) = 1;
+            
+            % Raise error for Population
+            app.SetinitialPopulationButton.BackgroundColor = '#EDB120';
+            app.Err(app.PopErr) = 1;
+        end
+        
+        function checkErr(app)
+            
+            % Check for errors
+            if any(app.Err)
+                % Disable Generate Button
+                app.GenerateButton.Enable = 0;
+            else
+                % Enable Generate Button
+                app.GenerateButton.Enable = 1;
+            end
+        end
     end
 
     % Callbacks that handle component events
@@ -56,9 +88,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             bits = app.BitsPerStringEditField.Value;
             app.DecimalPlacesEditField.Limits = [0 bits];
             
-            % Set ranges to default 1-10 values
-            app.Rng = repmat([0 10],app.StringsPerChromosomeEditField.Value,1);
-            
             % Enable setting decimal place if dropdown value is 2 (real)
             % otherwise disable
             if (app.TypeofValuesDropDown.Value == 2)
@@ -67,17 +96,18 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.DecimalPlacesEditField.Enable = 0;
             end
             
-            %Check for any errors
-            if any(app.Err)
-                %Disable Generate Button
-                app.GenerateButton.Enable = 0;
-            else
-                %Enable Generate Button
-                app.GenerateButton.Enable = 1;
-            end
+            % Set ranges to default 1-10 values
+            app.Rng = repmat([0 10],app.StringsPerChromosomeEditField.Value,1);
+            
+            % Raise error for Range and Population so that user will have
+            % to set it
+            app.RngPopErr();
+            
+            %Check for any errors if any disable Generate button
+            app.checkErr();
             
             % Center GUI
-            movegui(app.GeneticAlgorithmUIFigure,'center')
+            movegui(app.GeneticAlgorithmUIFigure,'center');
             
             % Show the figure
             app.GeneticAlgorithmUIFigure.Visible = 'on';
@@ -94,6 +124,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             else
                 app.DecimalPlacesEditField.Enable = 0;
             end
+            
+            % Raise error for Range and Population so that user will have
+            % to set or cross-check it
+            app.RngPopErr();
+            
+            % Disable Generate button if any error was raised
+            app.checkErr();
         end
 
         % Value changed function: NumberofChromosomesEditField
@@ -110,8 +147,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.Err(app.ChromNumErr) = 0;
             end
             
+            % Raise error for Range and Population so that user will have
+            % to set or cross-check it
+            app.RngPopErr();
+            
             % Disable Generate button if any error was raised
-            verifyVals(app, event);
+            app.checkErr();
         end
 
         % Value changed function: StringsPerChromosomeEditField
@@ -125,6 +166,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             elseif size(app.Rng,1) > value 
                 app.Rng = app.Rng(1:value,:);
             end
+            
+            % Raise error for Range and Population so that user will have
+            % to set or cross-check it
+            app.RngPopErr();
+            
+            % Disable Generate button if any error was raised
+            app.checkErr();
         end
 
         % Value changed function: BitsPerStringEditField
@@ -133,6 +181,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % Set upper limit of decimal places to number of bits
             app.DecimalPlacesEditField.Limits = [0 value];
+            
+            % Raise error for Range and Population so that user will have
+            % to set or cross-check it
+            app.RngPopErr();
+            
+            % Disable Generate button if any error was raised
+            app.checkErr();
         end
 
         % Button pushed function: SetRangesDefault010Button
@@ -328,20 +383,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             end
         end
 
-        % Callback function: GeneticAlgorithmUIFigure, 
-        % GeneticAlgorithmUIFigure, GeneticAlgorithmUIFigure
-        function verifyVals(app, event)
-            
-            % Check for errors
-            if any(app.Err)
-                % Disable Generate Button
-                app.GenerateButton.Enable = 0;
-            else
-                % Enable Generate Button
-                app.GenerateButton.Enable = 1;
-            end
-        end
-
         % Button pushed function: GenerateButton
         function GenerateButtonPushed(app, event)
             
@@ -357,11 +398,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create GeneticAlgorithmUIFigure and hide until all components are created
             app.GeneticAlgorithmUIFigure = uifigure('Visible', 'off');
-            app.GeneticAlgorithmUIFigure.Position = [100 100 640 500];
+            app.GeneticAlgorithmUIFigure.Position = [100 100 640 570];
             app.GeneticAlgorithmUIFigure.Name = 'Genetic Algorithm';
-            app.GeneticAlgorithmUIFigure.WindowButtonUpFcn = createCallbackFcn(app, @verifyVals, true);
-            app.GeneticAlgorithmUIFigure.WindowButtonMotionFcn = createCallbackFcn(app, @verifyVals, true);
-            app.GeneticAlgorithmUIFigure.KeyReleaseFcn = createCallbackFcn(app, @verifyVals, true);
             app.GeneticAlgorithmUIFigure.Scrollable = 'on';
 
             % Create GeneticAlgorithmLabel
@@ -370,7 +408,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.GeneticAlgorithmLabel.FontName = 'Agency FB';
             app.GeneticAlgorithmLabel.FontSize = 20;
             app.GeneticAlgorithmLabel.FontWeight = 'bold';
-            app.GeneticAlgorithmLabel.Position = [1 458 640 27];
+            app.GeneticAlgorithmLabel.Position = [1 524 640 27];
             app.GeneticAlgorithmLabel.Text = 'Genetic Algorithm';
 
             % Create GenerateButton
@@ -378,12 +416,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.GenerateButton.ButtonPushedFcn = createCallbackFcn(app, @GenerateButtonPushed, true);
             app.GenerateButton.BackgroundColor = [0.302 0.7451 0.9333];
             app.GenerateButton.FontColor = [0.9412 0.9412 0.9412];
-            app.GenerateButton.Position = [482 23 100 22];
+            app.GenerateButton.Position = [482 33 100 22];
             app.GenerateButton.Text = 'Generate';
 
             % Create NumberofChromosomesLabel
             app.NumberofChromosomesLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.NumberofChromosomesLabel.Position = [378 393 151 22];
+            app.NumberofChromosomesLabel.Position = [378 459 151 22];
             app.NumberofChromosomesLabel.Text = 'Number of Chromosomes:';
 
             % Create NumberofChromosomesEditField
@@ -395,12 +433,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.NumberofChromosomesEditField.ValueDisplayFormat = '%.0f';
             app.NumberofChromosomesEditField.ValueChangedFcn = createCallbackFcn(app, @NumberofChromosomesEditFieldValueChanged, true);
             app.NumberofChromosomesEditField.Tooltip = {'Value must be an even number'};
-            app.NumberofChromosomesEditField.Position = [539 393 43 22];
+            app.NumberofChromosomesEditField.Position = [539 459 43 22];
             app.NumberofChromosomesEditField.Value = 10;
 
             % Create StringsPerChromosomeLabel
             app.StringsPerChromosomeLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.StringsPerChromosomeLabel.Position = [44 347 150 22];
+            app.StringsPerChromosomeLabel.Position = [44 413 150 22];
             app.StringsPerChromosomeLabel.Text = 'Strings Per Chromosome:';
 
             % Create StringsPerChromosomeEditField
@@ -412,12 +450,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.StringsPerChromosomeEditField.ValueDisplayFormat = '%.0f';
             app.StringsPerChromosomeEditField.ValueChangedFcn = createCallbackFcn(app, @StringsPerChromosomeEditFieldValueChanged, true);
             app.StringsPerChromosomeEditField.Tooltip = {'New ranges would be added or excess ranges removed if the current set of ranges is less or more than this value'};
-            app.StringsPerChromosomeEditField.Position = [203 347 60 22];
+            app.StringsPerChromosomeEditField.Position = [203 413 60 22];
             app.StringsPerChromosomeEditField.Value = 5;
 
             % Create BitsPerStringEditFieldLabel
             app.BitsPerStringEditFieldLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.BitsPerStringEditFieldLabel.Position = [378 347 151 22];
+            app.BitsPerStringEditFieldLabel.Position = [378 413 151 22];
             app.BitsPerStringEditFieldLabel.Text = 'Bits Per String:';
 
             % Create BitsPerStringEditField
@@ -428,22 +466,22 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.BitsPerStringEditField.RoundFractionalValues = 'on';
             app.BitsPerStringEditField.ValueDisplayFormat = '%.0f';
             app.BitsPerStringEditField.ValueChangedFcn = createCallbackFcn(app, @BitsPerStringCheck, true);
-            app.BitsPerStringEditField.Position = [539 347 43 22];
+            app.BitsPerStringEditField.Position = [539 413 43 22];
             app.BitsPerStringEditField.Value = 7;
 
             % Create FunctionEditFieldLabel
             app.FunctionEditFieldLabel = uilabel(app.GeneticAlgorithmUIFigure);
             app.FunctionEditFieldLabel.HorizontalAlignment = 'right';
-            app.FunctionEditFieldLabel.Position = [219 180 60 22];
+            app.FunctionEditFieldLabel.Position = [219 246 60 22];
             app.FunctionEditFieldLabel.Text = 'Function:';
 
             % Create FunctionEditField
             app.FunctionEditField = uieditfield(app.GeneticAlgorithmUIFigure, 'text');
-            app.FunctionEditField.Position = [293 180 289 22];
+            app.FunctionEditField.Position = [293 246 289 22];
 
             % Create TypeofValuesDropDownLabel
             app.TypeofValuesDropDownLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.TypeofValuesDropDownLabel.Position = [44 393 84 22];
+            app.TypeofValuesDropDownLabel.Position = [44 459 84 22];
             app.TypeofValuesDropDownLabel.Text = 'Type of Values';
 
             % Create TypeofValuesDropDown
@@ -451,42 +489,42 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.TypeofValuesDropDown.Items = {'Binary', 'Real'};
             app.TypeofValuesDropDown.ValueChangedFcn = createCallbackFcn(app, @TypeofValuesDropDownValueChanged, true);
             app.TypeofValuesDropDown.BackgroundColor = [1 1 1];
-            app.TypeofValuesDropDown.Position = [133 393 130 22];
+            app.TypeofValuesDropDown.Position = [133 459 130 22];
             app.TypeofValuesDropDown.Value = 'Binary';
 
             % Create MinMaxLabel
             app.MinMaxLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.MinMaxLabel.Position = [44 180 54 22];
+            app.MinMaxLabel.Position = [44 246 54 22];
             app.MinMaxLabel.Text = 'Min/Max:';
 
             % Create MinMaxDropDown
             app.MinMaxDropDown = uidropdown(app.GeneticAlgorithmUIFigure);
             app.MinMaxDropDown.Items = {'Min', 'Max'};
             app.MinMaxDropDown.BackgroundColor = [1 1 1];
-            app.MinMaxDropDown.Position = [109 180 67 22];
+            app.MinMaxDropDown.Position = [109 246 67 22];
             app.MinMaxDropDown.Value = 'Min';
 
             % Create EvaluationLabel
             app.EvaluationLabel = uilabel(app.GeneticAlgorithmUIFigure);
             app.EvaluationLabel.HorizontalAlignment = 'center';
-            app.EvaluationLabel.Position = [1 212 640 22];
+            app.EvaluationLabel.Position = [1 278 640 22];
             app.EvaluationLabel.Text = 'Evaluation';
 
             % Create PopulationGenerationLabel
             app.PopulationGenerationLabel = uilabel(app.GeneticAlgorithmUIFigure);
             app.PopulationGenerationLabel.HorizontalAlignment = 'center';
-            app.PopulationGenerationLabel.Position = [1 424 640 22];
+            app.PopulationGenerationLabel.Position = [1 490 640 22];
             app.PopulationGenerationLabel.Text = 'Population Generation';
 
             % Create SetinitialPopulationButton
             app.SetinitialPopulationButton = uibutton(app.GeneticAlgorithmUIFigure, 'push');
             app.SetinitialPopulationButton.BackgroundColor = [1 1 1];
-            app.SetinitialPopulationButton.Position = [378 253 204 22];
+            app.SetinitialPopulationButton.Position = [378 319 204 22];
             app.SetinitialPopulationButton.Text = 'Set initial Population';
 
             % Create DecimalPlacesEditFieldLabel
             app.DecimalPlacesEditFieldLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.DecimalPlacesEditFieldLabel.Position = [44 300 151 22];
+            app.DecimalPlacesEditFieldLabel.Position = [44 366 151 22];
             app.DecimalPlacesEditFieldLabel.Text = 'Decimal Places:';
 
             % Create DecimalPlacesEditField
@@ -495,47 +533,47 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.DecimalPlacesEditField.RoundFractionalValues = 'on';
             app.DecimalPlacesEditField.ValueDisplayFormat = '%.0f';
             app.DecimalPlacesEditField.Tooltip = {'Value must not be more than bits per string'};
-            app.DecimalPlacesEditField.Position = [205 300 58 22];
+            app.DecimalPlacesEditField.Position = [205 366 58 22];
 
             % Create CrossOverLabel
             app.CrossOverLabel = uilabel(app.GeneticAlgorithmUIFigure);
             app.CrossOverLabel.HorizontalAlignment = 'center';
-            app.CrossOverLabel.Position = [1 137 640 22];
+            app.CrossOverLabel.Position = [1 203 640 22];
             app.CrossOverLabel.Text = 'Cross-Over';
 
             % Create ButtonGroup
             app.ButtonGroup = uibuttongroup(app.GeneticAlgorithmUIFigure);
             app.ButtonGroup.BorderType = 'none';
             app.ButtonGroup.TitlePosition = 'centertop';
-            app.ButtonGroup.Position = [1 108 640 30];
+            app.ButtonGroup.Position = [1 174 640 30];
 
             % Create PointButton
             app.PointButton = uiradiobutton(app.ButtonGroup);
             app.PointButton.Text = '1 Point';
-            app.PointButton.Position = [200 9 60 22];
+            app.PointButton.Position = [201 9 60 22];
             app.PointButton.Value = true;
 
             % Create PointsButton
             app.PointsButton = uiradiobutton(app.ButtonGroup);
             app.PointsButton.Text = '2 Points';
-            app.PointsButton.Position = [375 9 66 22];
+            app.PointsButton.Position = [376 9 66 22];
 
             % Create SetRangesDefault010Button
             app.SetRangesDefault010Button = uibutton(app.GeneticAlgorithmUIFigure, 'push');
             app.SetRangesDefault010Button.ButtonPushedFcn = createCallbackFcn(app, @SetRangesDefault010ButtonPushed, true);
             app.SetRangesDefault010Button.BackgroundColor = [1 1 1];
-            app.SetRangesDefault010Button.Position = [44 253 219 22];
+            app.SetRangesDefault010Button.Position = [44 319 219 22];
             app.SetRangesDefault010Button.Text = 'Set Ranges (Default 0-10)';
 
             % Create GenerationLabel
             app.GenerationLabel = uilabel(app.GeneticAlgorithmUIFigure);
             app.GenerationLabel.HorizontalAlignment = 'center';
-            app.GenerationLabel.Position = [1 83 640 22];
+            app.GenerationLabel.Position = [1 92 640 22];
             app.GenerationLabel.Text = 'Generation';
 
             % Create StopatGenerationLabel
             app.StopatGenerationLabel = uilabel(app.GeneticAlgorithmUIFigure);
-            app.StopatGenerationLabel.Position = [44 62 150 22];
+            app.StopatGenerationLabel.Position = [44 71 150 22];
             app.StopatGenerationLabel.Text = 'Stop at Generation:';
 
             % Create StopatGenerationEditField
@@ -544,8 +582,29 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.StopatGenerationEditField.Limits = [0 Inf];
             app.StopatGenerationEditField.RoundFractionalValues = 'on';
             app.StopatGenerationEditField.ValueDisplayFormat = '%.0f';
-            app.StopatGenerationEditField.Position = [203 62 60 22];
+            app.StopatGenerationEditField.Position = [203 71 60 22];
             app.StopatGenerationEditField.Value = 10;
+
+            % Create SelectionLabel
+            app.SelectionLabel = uilabel(app.GeneticAlgorithmUIFigure);
+            app.SelectionLabel.Position = [294 153 55 22];
+            app.SelectionLabel.Text = 'Selection';
+
+            % Create ButtonGroup_2
+            app.ButtonGroup_2 = uibuttongroup(app.GeneticAlgorithmUIFigure);
+            app.ButtonGroup_2.BorderType = 'none';
+            app.ButtonGroup_2.Position = [197 124 248 30];
+
+            % Create RolletteWheelButton
+            app.RolletteWheelButton = uiradiobutton(app.ButtonGroup_2);
+            app.RolletteWheelButton.Text = 'Rollette Wheel';
+            app.RolletteWheelButton.Position = [3 4 100 22];
+            app.RolletteWheelButton.Value = true;
+
+            % Create ElitismButton
+            app.ElitismButton = uiradiobutton(app.ButtonGroup_2);
+            app.ElitismButton.Text = 'Elitism';
+            app.ElitismButton.Position = [179 4 65 22];
 
             % Show the figure after all components are created
             app.GeneticAlgorithmUIFigure.Visible = 'on';
