@@ -37,13 +37,15 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
     end
 
     properties (Access = private)
-        Err =  [0 1];     % variable for tracking errors
-        ChromNumErr = 1;  % index of Err corresponding to no of chromosomes error
-        RngErr = 2;       % index of Err corresponding to Range error
-        PopErr = 3;       % index of Err corresponding to Population error
-        FuncErr = 4;      % index of Err corresponding to function error
-        Rng               % ranges for strings
-        LastRng           % last valid user input for ranges 
+        Err =  [0 1 1 1]; % Variable for tracking errors
+        ChromNumErr = 1;  % Index of Err corresponding to no of chromosomes error
+        RngErr = 2;       % Index of Err corresponding to Range error
+        PopErr = 3;       % Index of Err corresponding to Population error
+        FuncErr = 4;      % Index of Err corresponding to function error
+        Rng               % Ranges for strings
+        LastRng           % Last valid user input for ranges 
+        Pop = "";         % Population
+        LastPop = "";     % Last valid population
     end
     
     methods (Access = private)
@@ -101,7 +103,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % Raise error for Range and Population so that user will have
             % to set it
-            app.RngPopErr();
+            % app.RngPopErr();
             
             %Check for any errors if any disable Generate button
             app.checkErr();
@@ -125,6 +127,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.DecimalPlacesEditField.Enable = 0;
             end
             
+            % Erase Population
+            app.Pop = string;
+            
             % Raise error for Range and Population so that user will have
             % to set or cross-check it
             app.RngPopErr();
@@ -147,6 +152,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.Err(app.ChromNumErr) = 0;
             end
             
+            % Erase Population
+            app.Pop = string;
+            
             % Raise error for Range and Population so that user will have
             % to set or cross-check it
             app.RngPopErr();
@@ -159,13 +167,18 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         function StringsPerChromosomeEditFieldValueChanged(app, event)
             value = app.StringsPerChromosomeEditField.Value;
             
-            % If set of ranges is lesser than number of strings pad app.Rng with default values to the length (rows) equal to number of strings
-            % else if set of ranges is greater than number of strings trim app.Rng to make length (rows) equal to number of strings
+            % If set of ranges is lesser than number of strings pad app.Rng
+            % with default values to the length (rows) equal to number of strings
+            % else if set of ranges is greater than number of strings trim
+            % app.Rng to make length (rows) equal to number of strings
             if size(app.Rng,1) < value
-                app.Rng = [app.Rng; repmat([1 10],value-size(app.Rng,1),1)];
+                app.Rng = [app.Rng; repmat([0 10],value-size(app.Rng,1),1)];
             elseif size(app.Rng,1) > value 
                 app.Rng = app.Rng(1:value,:);
             end
+            
+            % Erase Population
+            app.Pop = string;
             
             % Raise error for Range and Population so that user will have
             % to set or cross-check it
@@ -181,6 +194,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % Set upper limit of decimal places to number of bits
             app.DecimalPlacesEditField.Limits = [0 value];
+            
+            % Erase Population
+            app.Pop = string;
             
             % Raise error for Range and Population so that user will have
             % to set or cross-check it
@@ -198,12 +214,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % If ranges is not set use default values
             if isempty(app.Rng)
-                app.Rng = repmat([1 10],strNum,1);
+                app.Rng = repmat([0 10],strNum,1);
             end
             
             % If there are no last valid values use default values
             if isempty(app.LastRng)
-                app.LastRng = repmat([1 10],strNum,1);
+                app.LastRng = repmat([0 10],strNum,1);
             end
             
             % Variable for tracking error in this function
@@ -261,27 +277,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 end
             end
             
-            function ufDeleteFcn()
-                % This function shows the base GUI when the GUI for ranges
-                % is being deleted
-                
-                % Using modal for this second uifigure should be better but
-                % modal is not available in MATLAB R2019b. I want to update
-                % this part when I get a later version of MATLAB
-                app.GeneticAlgorithmUIFigure.Visible = 'on';
-            end
-            
-            function ufCloseFcn()
-                % This function shows the base GUI when the GUI for ranges
-                % has been deleted
-                
-                % Using modal for this second uifigure should be better but
-                % modal is not available in MATLAB R2019b. I want to update
-                % this part when I get a later version of MATLAB
-                delete(uf);
-                app.GeneticAlgorithmUIFigure.Visible = 'on';
-            end
-            
             function ResetVal(val)
                 % This function sets the values of the ranges as the
                 % default value if val is 1 or to the last valid values
@@ -302,16 +297,21 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 % Save the ranges in a cell array
                 cellA = ACell();
                 
-                % Output the ranges in the GUI for ranges
+                % Output the ranges in the GUI for ranges and make
+                % background white
                 input.Value = cellA;
                 input.BackgroundColor = '#fff';
             end
             
             function checkVal
                 
-                % If number of rows in input is not equal to number of strings
-                % raise error otherwise continue to else
-                if size(input.Value,1) ~= strNum
+                % If input is empty or number of rows is not equal to
+                % number of strings raise error otherwise continue to else
+                if string(input.Value) == ""
+                    uialert(uf,'There are no values. There should be '+...
+                        string(strNum)+' sets of ranges','Error')
+                    input.BackgroundColor = '#EDB120';
+                elseif size(input.Value,1) ~= strNum
                     uialert(uf,'There are '+string(size(input.Value,1))+...
                         ' sets of values. There should be '+string(strNum)+...
                         ' sets of ranges','Error')
@@ -321,14 +321,15 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     % of input values
                     cellAScan = cell(size(input.Value,1),2);
                     
+                    % expr is a regular expression to check if each line of
+                    % input contains exactly two numbers separated by one
+                    % or more space characters
+                    expr = '([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)';
+                    
                     % Error check each line of input. If any error track
                     % with valErr
                     for i = 1:size(input.Value,1)
-                        % expr is a regular expression to check if each
-                        % line of input contains exactly two numbers
-                        % separated by one or more space characters
-                        expr = '([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)';
-                        
+                                                
                         % Remove leading and trailing spaces then check if current line matches expr
                         [start,last] = regexp(strip(input.Value{i}),expr);
                         
@@ -364,11 +365,21 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     end
                     
                     if ~valErr % if no error occurs
-                        app.Rng = cell2mat(cellAScan); % update the values of the ranges (app.Rng)
+                        % update the values of the ranges (app.Rng)
+                        app.Rng = cell2mat(cellAScan);
+                        
+                        % update LastRng if needed
                         final();
+                        
+                        % change the button background to white
+                        app.SetRangesDefault010Button.BackgroundColor = '#fff';
+                        
+                        % discard Range Error if raised
+                        app.Err(app.RngErr) = 0;
                     end
                 end
             end
+            
             function final
                 input.BackgroundColor = '#fff';
                 
@@ -381,12 +392,290 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 % Close figure for setting ranges
                 close(uf);
             end
+            
+            function ufDeleteFcn()
+                % This function shows the base GUI when the GUI for ranges
+                % is being deleted
+                
+                % Using modal for this second uifigure should be better but
+                % modal is not available in MATLAB R2019b. I want to update
+                % this part when I get a later version of MATLAB
+                app.GeneticAlgorithmUIFigure.Visible = 'on';
+            end
+            
+            function ufCloseFcn()
+                % This function shows the base GUI when the GUI for ranges
+                % has been deleted
+                
+                % Using modal for this second uifigure should be better but
+                % modal is not available in MATLAB R2019b. I want to update
+                % this part when I get a later version of MATLAB
+                delete(uf);
+                app.GeneticAlgorithmUIFigure.Visible = 'on';
+            end
         end
 
         % Button pushed function: GenerateButton
         function GenerateButtonPushed(app, event)
             
+            % If there is Range or Population error show it then disable
+            % Generate button
+            if app.Err(app.RngErr) || app.Err(app.PopErr)
+                app.RngPopErr();    % Show Range or Population error
+                app.checkErr();     % Disable Generate button if any error
+            end
+            
+            % If there is function error show it the disable Generate
+            % button
+            if app.Err(app.FuncErr)
+                app.FunctionEditField.BackgroundColor = '#EDB120';
+                app.checkErr();
+            end
+            
             % To-Do: use uiputfile for filename and directory
+            
+        end
+
+        % Button pushed function: SetinitialPopulationButton
+        function SetinitialPopulationButtonPushed(app, event)
+            % Get the dropdown value 1 (binary) or 2 (real)
+            type = app.TypeofValuesDropDown.Value;
+            
+            % Get the number of chromosomes
+            chromNum = app.NumberofChromosomesEditField.Value;
+            
+            % Get number of strings
+            strNum = app.StringsPerChromosomeEditField.Value;
+            
+            % Get the number of bits per string
+            bitNum = app.BitsPerStringEditField.Value;
+            
+            % If Population is empty make cellPopOut empty otherwise save
+            % each line of the Population as an element in cellPopOut
+            if app.Pop == ""
+                cellPopOut = '';
+            else
+                cellPopOut = PopLines();
+            end
+            
+            % If last valid Population is empty make it equal to cellPopOut
+            if app.LastPop == ""
+                app.LastPop = cellPopOut;
+            end
+
+            % Create UI figure (uf) to set set initial population but do
+            % not show till setup finishes
+            uf = uifigure('Name','Initial Population','Position',...
+                [100 100 616 420],'Scrollable','on','DeleteFcn',...
+                @(uf,event) ufDeleteFcn(),'CloseRequestFcn',...
+                @(uf,event) ufCloseFcn(),'Visible','off');
+
+            % Set last part of instruction according to the type (binary or
+            % real)
+            if type == 1
+                labelend = ' of 1s and 0s';
+            else
+                labelend = '';
+            end
+            
+            % Input instruction
+            labelmsg{1,2} = sprintf('Format: %d %d-digit numbers%s',...
+                strNum,bitNum,labelend);  
+            labelmsg{1,1} = 'Input values in each row for the respective chromosomes.';
+
+            uilabel(uf,'Position',[56 356 448 33],'Text',labelmsg);
+            
+            % User input values area
+            input = uitextarea(uf,'Position',[56 42 336 294],...
+                'Value',cellPopOut);
+            
+            % Random Populatio button
+            uibutton(uf,'push','Text','Random Pop.',....
+                'Position',[448 272 112 22],...
+                'ButtonPushedFcn',@(btn,event) ResetVal(1));
+            
+            % Last valid Population button
+            uibutton(uf,'push','Text','Last Valid Pop.',...
+                'Position',[448 178 112 22],...
+                'ButtonPushedFcn',@(btn,event) ResetVal(2));
+            
+            % Set button
+            uibutton(uf,'push','Text','Set',...
+                'Position',[448 84 112 22],'BackgroundColor','#4DBEEE',...
+                'ButtonPushedFcn',@(btn,event) set());
+            
+            % Center GUI for setting Population
+            movegui(uf,'center')
+            
+            % Hide base GUI
+            % When I get a later version of MATLAB using modal should be
+            % better than hiding the figure
+            app.GeneticAlgorithmUIFigure.Visible = 'off';
+            
+            % Show GUI for setting ranges
+            uf.Visible = 'on';
+
+            function cellPop = PopLines()
+                %This function stores each row of Populaion in app.Pop as
+                % a string in the output cell array (cellPop)
+                if app.Pop ~= ""
+                    cellPop = strings(size(app.Pop,1),1);
+                    for i = 1:length(cellPop)
+                        cellPop(i) = strjoin(app.Pop(i,:));
+                    end
+                else
+                  cellPop = '';
+                end
+            end
+            
+            function ResetVal(val)
+                % This function sets the values of the Population as
+                % random values if val is 1 or to the last valid values
+                % if val is 2
+                if val == 1
+                    upLim = [2 10].^bitNum-1;
+                    randInts = randi([0 upLim(type)],chromNum,strNum);
+                    app.Pop = strings(chromNum,strNum);
+                    if type == 1
+                        for i=1:strNum
+                            app.Pop(:,i) = string(dec2bin(randInts(:,i),bitNum));
+                        end
+                    elseif type == 2
+                        for i=1:chromNum
+                            for j=1:strNum
+                                app.Pop(i,j) = sprintf("%0"+...
+                                    string(bitNum)+"d",randInts(i,j));
+                            end
+                        end
+                    end
+                elseif val ==2
+                    % If no last valid values raise error else make
+                    % Population equal to last valid values
+                    if app.LastPop == ""
+                        alertmsg{2,1} = 'You can use random population instead';
+                        alertmsg{1,1} = 'No population has been set yet';
+                        uialert(uf,alertmsg,'Error');
+                    else
+                        app.Pop = app.LastPop;
+                    end
+                end
+                
+                % Save Population in a cell array
+                cellPopOut = PopLines();
+                
+                % Output the Population in the GUI for Population
+                input.Value = cellPopOut;
+                input.BackgroundColor = '#fff';
+            end
+            function set
+                
+                % If input is empty or number of rows is not equal to
+                % number of strings raise error otherwise continue to else
+                if string(input.Value) == ""
+                    uialert(uf,'There are no values. There should be '+...
+                        string(chromNum)+' chromosome populations','Error')
+                    input.BackgroundColor = '#EDB120';
+                elseif size(input.Value,1) ~= chromNum
+                    uialert(uf,'There are '+string(size(input.Value,1))+...
+                        ' values. There should be '+string(chromNum)+...
+                        ' chromosome Populations','Error')
+                    input.BackgroundColor = '#EDB120';
+                else
+                    
+                    % Empty 2-column cell array with rows equal to length
+                    % of input values
+                    cellPopScan = cell(size(input.Value,1),strNum);
+                    
+                    % Set the type and number of digits required according
+                    % to type (binary or real) and number of bits
+                    if type == 1
+                        digits = "[0-1]{"+string(bitNum)+"}";
+                    elseif type == 2
+                        digits = "\d{"+string(bitNum)+"}";
+                    end
+                    
+                    % expr is a regular expression for checking the inputs
+                    expr = strjoin(repmat(digits,1,strNum),'[ ]+');
+                    
+                    % Error check each line of input. If any error track
+                    % with valErr
+                    for i = 1:size(input.Value,1)
+                        % Remove leading and trailing spaces then check if
+                        % current line matches expr
+                        [start,last] = regexp(strip(input.Value{i}),expr);
+                        
+                        if isempty(start) && isempty(last)        % current line does not match expr
+                            alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
+                                "%s\nfor each chromosome (row)",strNum,bitNum,labelend);
+                            uialert(uf,alertmsg,'Error')
+                            valErr = 1;
+                            input.BackgroundColor = '#EDB120';
+                            break
+                        elseif (start == 1 && last == length(strip(input.Value{i}))) % current line matches expr exactly
+                            scanformat = strjoin(repmat("%s",1,strNum));
+                            cellPopScan(i,:) = textscan(input.Value{i},scanformat);
+                            valErr = 0;
+                            input.BackgroundColor = '#fff';
+                        else    % current line matches expr partly
+                            alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
+                                "%s\nfor each chromosome (row)",strNum,bitNum,labelend);
+                            uialert(uf,alertmsg,'Error')
+                            valErr = 1;
+                            input.BackgroundColor = '#EDB120';
+                            break
+                        end
+                    end
+                    if ~valErr % if no error occurs
+                        % Update the values of the Population (app.Pop)
+                        app.Pop = strings(chromNum,strNum);
+                        for i = 1:size(cellPopScan,1)
+                            for j = 1:size(cellPopScan,2)
+                                app.Pop(i,j) = string(cellPopScan{i,j});
+                            end
+                        end
+                        
+                        % Set input background to white
+                        input.BackgroundColor = '#fff';
+                        
+                        % Update Last Valid Population (app.LastPop)
+                        app.LastPop = app.Pop;
+                        
+                        % Set button background to white
+                        app.SetinitialPopulationButton.BackgroundColor = '#fff';
+                        
+                        % Close the figure
+                        close(uf)
+                    end
+                end
+            end
+            
+            function ufDeleteFcn()
+                % This function shows the base GUI when the GUI for ranges
+                % is being deleted
+                
+                % Using modal for this second uifigure should be better but
+                % modal is not available in MATLAB R2019b. I want to update
+                % this part when I get a later version of MATLAB
+                app.GeneticAlgorithmUIFigure.Visible = 'on';
+            end
+            
+            function ufCloseFcn()
+                % This function shows the base GUI when the GUI for ranges
+                % has been deleted
+                
+                % Using modal for this second uifigure should be better but
+                % modal is not available in MATLAB R2019b. I want to update
+                % this part when I get a later version of MATLAB
+                delete(uf);
+                app.GeneticAlgorithmUIFigure.Visible = 'on';
+            end
+        end
+
+        % Value changed function: FunctionEditField
+        function FunctionEditFieldValueChanged(app, event)
+            %value = app.FunctionEditField.Value;
+            
+            % Next on the list to do. Goodnight!
         end
     end
 
@@ -477,6 +766,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create FunctionEditField
             app.FunctionEditField = uieditfield(app.GeneticAlgorithmUIFigure, 'text');
+            app.FunctionEditField.ValueChangedFcn = createCallbackFcn(app, @FunctionEditFieldValueChanged, true);
             app.FunctionEditField.Position = [293 246 289 22];
 
             % Create TypeofValuesDropDownLabel
@@ -518,6 +808,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create SetinitialPopulationButton
             app.SetinitialPopulationButton = uibutton(app.GeneticAlgorithmUIFigure, 'push');
+            app.SetinitialPopulationButton.ButtonPushedFcn = createCallbackFcn(app, @SetinitialPopulationButtonPushed, true);
             app.SetinitialPopulationButton.BackgroundColor = [1 1 1];
             app.SetinitialPopulationButton.Position = [378 319 204 22];
             app.SetinitialPopulationButton.Text = 'Set initial Population';
