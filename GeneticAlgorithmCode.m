@@ -134,9 +134,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Erase Population
             app.Pop = string;
             
-            % Raise error for Range and Population so that user will have
-            % to set or cross-check it
-            app.RngPopErr();
+            % Raise error for Population so that user will have to set or
+            % cross-check it
+            app.SetinitialPopulationButton.BackgroundColor = '#EDB120';
+            app.Err(app.PopErr) = 1;
             
             % Disable Generate button if any error was raised
             app.checkErr();
@@ -159,9 +160,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Erase Population
             app.Pop = string;
             
-            % Raise error for Range and Population so that user will have
-            % to set or cross-check it
-            app.RngPopErr();
+            % Raise error for Population so that user will have to set or
+            % cross-check it
+            app.SetinitialPopulationButton.BackgroundColor = '#EDB120';
+            app.Err(app.PopErr) = 1;
             
             % Disable Generate button if any error was raised
             app.checkErr();
@@ -188,6 +190,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % to set or cross-check it
             app.RngPopErr();
             
+            % Error-check the function
+            FunctionEditFieldValueChanged(app, event);
+            
             % Disable Generate button if any error was raised
             app.checkErr();
         end
@@ -202,9 +207,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Erase Population
             app.Pop = string;
             
-            % Raise error for Range and Population so that user will have
-            % to set or cross-check it
-            app.RngPopErr();
+            % Raise error for Population so that user will have to set or
+            % cross-check it
+            app.SetinitialPopulationButton.BackgroundColor = '#EDB120';
+            app.Err(app.PopErr) = 1;
             
             % Disable Generate button if any error was raised
             app.checkErr();
@@ -335,7 +341,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     for i = 1:size(input.Value,1)
                                                 
                         % Remove leading and trailing spaces then check if current line matches expr
-                        [start,last] = regexp(strip(input.Value{i}),expr);
+                        [start,last] = regexp(strip(input.Value{i}),expr,'once');
                         
                         if isempty(start) && isempty(last)        % current line does not match expr
                             alertmsg{2,1} = 'min and max should be integers separated by space';
@@ -392,6 +398,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 if ~isequal(app.Rng,repmat([0 10],strNum,1))
                     app.LastRng = app.Rng;
                 end
+                
+                %Check for any errors if any disable Generate button
+                app.checkErr();
                 
                 % Close figure for setting ranges
                 close(uf);
@@ -606,7 +615,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     for i = 1:size(input.Value,1)
                         % Remove leading and trailing spaces then check if
                         % current line matches expr
-                        [start,last] = regexp(strip(input.Value{i}),expr);
+                        [start,last] = regexp(strip(input.Value{i}),expr,'once');
                         
                         if isempty(start) && isempty(last)        % current line does not match expr
                             alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
@@ -647,6 +656,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         % Set button background to white
                         app.SetinitialPopulationButton.BackgroundColor = '#fff';
                         
+                        % discard Range Error if raised
+                        app.Err(app.PopErr) = 0;
+                        
+                        %Check for any errors if any disable Generate button
+                        app.checkErr();
+                        
                         % Close the figure
                         close(uf)
                     end
@@ -682,18 +697,14 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Get number of strings
             strNum = app.StringsPerChromosomeEditField.Value;
             
-            % Valid arithmetic operators
-            signs = "+-*/^";
-            
             % expr is a regular expression to check the function
-            expr = "[-+]?["+strjoin("x"+string(1:strNum),'')+"](?:["+signs+"]["+strjoin("x"+string(1:strNum),'')+"])*";
+            expr = "[-+]?(?:x["+strjoin(string(1:strNum),'')+"])(?:[+*/^-]x["+strjoin(string(1:strNum),'')+"])*";
             
             % Check if function matches expr
-            [start,last] = regexp(value,expr,'all');
+            [start,last] = regexp(value,expr,'once');
             
             if isempty(start) || isempty(last)  % Function does not match expr
                 app.FunctionEditField.BackgroundColor = '#EDB120';
-                app.FunctionEditField.Tooltip = "Variables: x1-x"+string(strNum)+". Operators:  "+signs;
                 app.Err(app.FuncErr) = 1;
             elseif start(1) == 1 && last(end) == length(value)  % function matches expr exactly
                 app.FunctionEditField.BackgroundColor = '#fff';
