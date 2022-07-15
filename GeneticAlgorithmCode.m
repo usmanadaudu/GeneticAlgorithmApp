@@ -105,6 +105,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % to set it
             % app.RngPopErr();
             
+            % Set tooltip for function
+            app.FunctionEditField.Tooltip = "Variables: x1-x"+...
+                string(app.StringsPerChromosomeEditField.Value)+". Operators:  +-*/^";
+            
             %Check for any errors if any disable Generate button
             app.checkErr();
             
@@ -340,7 +344,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             valErr = 1;
                             input.BackgroundColor = '#EDB120';
                             break
-                        elseif (start == 1 && last == length(strip(input.Value{i})))        % current line matches expr exactly
+                        elseif (start(1) == 1 && last(end) == length(strip(input.Value{i})))        % current line matches expr exactly
                             % capture the two numbers into respective columns in cellAScan
                             cellAScan(i,:) = textscan(input.Value{i},'%f %f');
                             
@@ -611,7 +615,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             valErr = 1;
                             input.BackgroundColor = '#EDB120';
                             break
-                        elseif (start == 1 && last == length(strip(input.Value{i}))) % current line matches expr exactly
+                        elseif (start(1) == 1 && last(end) == length(strip(input.Value{i}))) % current line matches expr exactly
                             scanformat = strjoin(repmat("%s",1,strNum));
                             cellPopScan(i,:) = textscan(input.Value{i},scanformat);
                             valErr = 0;
@@ -673,9 +677,34 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
         % Value changed function: FunctionEditField
         function FunctionEditFieldValueChanged(app, event)
-            %value = app.FunctionEditField.Value;
+            value = regexprep(app.FunctionEditField.Value,'\s','');
             
-            % Next on the list to do. Goodnight!
+            % Get number of strings
+            strNum = app.StringsPerChromosomeEditField.Value;
+            
+            % Valid arithmetic operators
+            signs = "+-*/^";
+            
+            % expr is a regular expression to check the function
+            expr = "[-+]?["+strjoin("x"+string(1:strNum),'')+"](?:["+signs+"]["+strjoin("x"+string(1:strNum),'')+"])*";
+            
+            % Check if function matches expr
+            [start,last] = regexp(value,expr,'all');
+            
+            if isempty(start) || isempty(last)  % Function does not match expr
+                app.FunctionEditField.BackgroundColor = '#EDB120';
+                app.FunctionEditField.Tooltip = "Variables: x1-x"+string(strNum)+". Operators:  "+signs;
+                app.Err(app.FuncErr) = 1;
+            elseif start(1) == 1 && last(end) == length(value)  % function matches expr exactly
+                app.FunctionEditField.BackgroundColor = '#fff';
+                app.Err(app.FuncErr) = 0;
+            else    % current line matches expr partly
+                app.FunctionEditField.BackgroundColor = '#EDB120';
+                app.Err(app.FuncErr) = 1;
+            end
+            
+            %Check for any errors if any disable Generate button
+            app.checkErr();
         end
     end
 
