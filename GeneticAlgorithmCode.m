@@ -428,27 +428,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             end
         end
 
-        % Button pushed function: GenerateButton
-        function GenerateButtonPushed(app, event)
-            
-            % If there is Range or Population error show it then disable
-            % Generate button
-            if app.Err(app.RngErr) || app.Err(app.PopErr)
-                app.RngPopErr();    % Show Range or Population error
-                app.checkErr();     % Disable Generate button if any error
-            end
-            
-            % If there is function error show it the disable Generate
-            % button
-            if app.Err(app.FuncErr)
-                app.FunctionEditField.BackgroundColor = '#EDB120';
-                app.checkErr();
-            end
-            
-            % To-Do: use uiputfile for filename and directory
-            
-        end
-
         % Button pushed function: SetinitialPopulationButton
         function SetinitialPopulationButtonPushed(app, event)
             % Get the dropdown value 1 (binary) or 2 (real)
@@ -716,6 +695,29 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             %Check for any errors if any disable Generate button
             app.checkErr();
+        end
+
+        % Button pushed function: GenerateButton
+        function GenerateButtonPushed(app, event)
+            
+            % If there is Range or Population error show it then disable
+            % Generate button
+            if app.Err(app.RngErr) || app.Err(app.PopErr)
+                app.RngPopErr();    % Show Range or Population error
+                app.checkErr();     % Disable Generate button if any error
+            end
+            
+            % If there is function error show it the disable Generate
+            % button
+            if app.Err(app.FuncErr)
+                app.FunctionEditField.BackgroundColor = '#EDB120';
+                app.checkErr();
+            end
+            
+            % Up next main algorithm!
+            
+            % To-Do: use uiputfile for filename and directory
+            
         end
     end
 
