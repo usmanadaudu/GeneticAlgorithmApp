@@ -43,7 +43,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
     properties (Access = private)
         Err =  [0 1 1 1]; % Variable for tracking errors
-        ChromNumErr = 1;  % Index of Err corresponding to no of chromosomes error
+        ChromNumErr = 1;  % Index of Err corresponding to no of chromosomes
+                          % error
         RngErr = 2;       % Index of Err corresponding to Range error
         PopErr = 3;       % Index of Err corresponding to Population error
         FuncErr = 4;      % Index of Err corresponding to function error
@@ -54,10 +55,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         GenZero           % Initial generation
         % Other Generations
         Gen = struct('initPop',"",'crossPairs',[],'crossProbs',[],...
-                    'crossPoints',[],'doCross',[],'crossedPop',[],'mutPairs',[],...
-                    'mutProbs',[],'mutPoints',[],'doMutation',[],'mutatedPop',[],...
-                    'denVal',[],'decVal',[],'fx',[],'fit',[],'cumFit',[],'selChroms',[],...
-                    'bestTillNow',"",'bestFitTillNow',[],'finalPop',[]);
+                    'crossPoints',[],'doCross',[],'crossedPop',[],...
+                    'mutPairs',[],'mutProbs',[],'mutPoints',[],...
+                    'doMutation',[],'mutatedPop',[],'denVal',[],...
+                    'decVal',[],'fx',[],'fit',[],'cumFit',[],...
+                    'selChroms',[],'bestTillNow',"",...
+                    'bestFitTillNow',[],'finalPop',[]);
     end
     
     methods (Access = private)
@@ -77,20 +80,22 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % if val is 2
             value = app.StringsPerChromosomeEditField.Value;
             strNum = app.StringsPerChromosomeEditField.Value;
+            bits = app.BitsPerStringEditField.Value;
+            decPl = app.DecimalPlacesEditField.Value;
             if val == 1
                 if (app.TypeofValuesDropDown.Value == 1)
                     app.Rng = repmat([0 10],strNum,1);
                 else
-                    app.Rng = repmat([0 (10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value],...
-                        strNum,1);
+                    app.Rng = repmat([0 (10^bits-1)*10^-decPl],strNum,1);
                 end
             elseif val == 2
                 if size(app.LastRng,1) < value
                     if (app.TypeofValuesDropDown.Value == 1)
-                        app.Rng = [app.LastRng; repmat([0 10],value-size(app.LastRng,1),1)];
+                        app.Rng = [app.LastRng; repmat([0 10],...
+                            value-size(app.LastRng,1),1)];
                     else
-                        app.Rng = [app.LastRng; repmat([0 (10^app.BitsPerStringEditField.Value-1)*...
-                        10^-app.DecimalPlacesEditField.Value],value-size(app.LastRng,1),1)];
+                        app.Rng = [app.LastRng; repmat([0 (10^bits-1)*10^-decPl],...
+                            value-size(app.LastRng,1),1)];
                     end
                 elseif size(app.LastRng,1) > value
                     app.Rng = app.LastRng(1:value,:);
@@ -111,6 +116,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         function checkRngVal(app,uf,input)
             
             strNum = app.StringsPerChromosomeEditField.Value;
+            bits = app.BitsPerStringEditField.Value;
+            decPl = app.DecimalPlacesEditField.Value;
                 
             % If input is empty or number of rows is not equal to
             % number of strings raise error otherwise continue to else
@@ -131,7 +138,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 % expr is a regular expression to check if each line of
                 % input contains exactly two numbers separated by one
                 % or more space characters
-                expr = '([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)';
+                expr = "([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+"+...
+                    "([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)";
                 
                 % Error check each line of input. If any error track
                 % with valErr
@@ -140,24 +148,29 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     % Remove leading and trailing spaces then check if current line matches expr
                     [start,last] = regexp(strip(input.Value{i}),expr,'once');
                     
-                    if isempty(start) && isempty(last)        % current line does not match expr
+                    if isempty(start) && isempty(last)
+                    % current line does not match expr
                         alertmsg{2,1} = 'min and max should be integers separated by space';
                         alertmsg{1,1} = 'Input format: min max';
                         uialert(uf,alertmsg,'Error')
                         valErr = 1;
                         input.BackgroundColor = '#EDB120';
                         break
-                    elseif (start(1) == 1 && last(end) == length(strip(input.Value{i})))        % current line matches expr exactly
-                        % capture the two numbers into respective columns in cellAScan
+                    elseif (start(1) == 1 && last(end) == length(strip(input.Value{i})))
+                    % Current line matches expr exactly
+                    
+                        % Capture the two numbers into respective columns in cellAScan
                         cellAScan(i,:) = textscan(input.Value{i},'%f %f');
                         
-                        if ~(cellAScan{i,1} <= cellAScan{i,2}) % first number (min) is greater than the second number (max)
+                        if ~(cellAScan{i,1} <= cellAScan{i,2})
+                        % First number (min) is greater than the second number (max)
                             alertmsg = 'Each min should not be greater than the respective max';
                             uialert(uf,alertmsg,'Error')
                             valErr = 1;
                             input.BackgroundColor = '#EDB120';
                             break
                         elseif (app.TypeofValuesDropDown.Value == 2 && cellAScan{i,1}<0)
+                        % Type is real and first Number is lesser than zero
                             format long
                             alertmsg = 'Each min should not be lesser than zero';
                             uialert(uf,alertmsg,'Error')
@@ -165,9 +178,18 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             input.BackgroundColor = '#EDB120';
                             break
                         elseif (app.TypeofValuesDropDown.Value == 2 ...
-                                && cellAScan{i,2}>(10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value)
+                                && cellAScan{i,2}>(10^bits)*10^-decPl)
+                        % Type is real and the second number is higher than
+                        % the maximum possible value. the maximum posibble
+                        % value is 10 raised to the power of the number of
+                        % bits minus one then shift decimal places forward
+                        % by the specified decimal places
+                        
+                        % Every value in the population is to the decimal
+                        % places specified from onset
                             format long
-                            alertmsg = "Each max should not be greater than "+string((10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value);
+                            alertmsg = "Each max should not be greater than "+...
+                                string((10^bits-1)*10^-decPl);
                             uialert(uf,alertmsg,'Error')
                             valErr = 1;
                             input.BackgroundColor = '#EDB120';
@@ -266,6 +288,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % Get the number of bits per string
             bitNum = app.BitsPerStringEditField.Value;
+            
+            decPl = app.DecimalPlacesEditField.Value;
         
             if val == 1
                 if type == 1
@@ -273,10 +297,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 else
                     randInts = zeros(chromNum,strNum);
                     for i = 1:strNum
-                        if (10^bitNum-1) <= round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value)
+                        if (10^bitNum-1) <= round(app.Rng(i,2)*10^decPl)
                             upLim = 10^bitNum-1;
                         else
-                            upLim = round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value);
+                            upLim = round(app.Rng(i,2)*10^decPl);
                         end
                         randInts(:,i) = randi([0 upLim],chromNum,1);
                     end
@@ -328,6 +352,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Get the number of bits per string
             bitNum = app.BitsPerStringEditField.Value;
             
+            decPl = app.DecimalPlacesEditField.Value;
+            
             % If input is empty or number of rows is not equal to
             % number of strings raise error otherwise continue to else
             if string(input.Value) == ""
@@ -372,7 +398,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         valErr = 1;
                         input.BackgroundColor = '#EDB120';
                         break
-                    elseif (start(1) == 1 && last(end) == length(strip(input.Value{i}))) % current line matches expr exactly
+                    elseif (start(1) == 1 && last(end) == length(strip(input.Value{i})))
+                    % current line matches expr exactly
                         scanformat = strjoin(repmat("%s",1,strNum));
                         cellPopScan(i,:) = textscan(input.Value{i},scanformat);
                         if type == 1
@@ -380,16 +407,16 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             input.BackgroundColor = '#fff';
                         elseif type == 2
                             for j = 1:size(cellPopScan(i,:),2)
-                                if str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                if str2double(cellPopScan{i,j})*10^-decPl < app.Rng(j,1)
                                     alertmsg = sprintf("Each value should not be lesser than %d",...
-                                        app.Rng(j,1)*10^-app.DecimalPlacesEditField.Value);
+                                        app.Rng(j,1)*10^-decPl);
                                     uialert(uf,alertmsg,'Error')
                                     valErr = 1;
                                     input.BackgroundColor = '#EDB120';
                                     break
-                                elseif str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                elseif str2double(cellPopScan{i,j})*10^-decPl > app.Rng(j,2)
                                     alertmsg = sprintf("Each value should not be more than %d",...
-                                        app.Rng(j,2)*10^-app.DecimalPlacesEditField.Value);
+                                        app.Rng(j,2)*10^-decPl);
                                     uialert(uf,alertmsg,'Error')
                                     valErr = 1;
                                     input.BackgroundColor = '#EDB120';
@@ -467,10 +494,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         end
         
         function CurGen = cross(app,GenNo)
+            popSize = app.PopulationSizeEditField.Value;
+            strNo = app.StopatGenerationEditField.Value;
+            bits = app.BitsPerStringEditField.Value;
             CurGen = app.Gen(GenNo);
-            CurGen.crossPairs = ones(app.PopulationSizeEditField.Value/2,2);
-            for i = 1:app.PopulationSizeEditField.Value/2
-                CurGen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+            CurGen.crossPairs = ones(popSize/2,2);
+            for i = 1:popSize/2
+                CurGen.crossPairs(i,:) = randi(popSize,1,2);
                 repErr = 1;
                 if i ~= 1
                     while repErr
@@ -478,7 +508,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         check2 = CurGen.crossPairs(i,:) == CurGen.crossPairs(1:i-1,[2 1]);
                         check3 = CurGen.crossPairs(i,1) == CurGen.crossPairs(i,2);
                         if (any(all(check1,2)) || any(all(check2,2)) || check3)
-                            CurGen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                            CurGen.crossPairs(i,:) = randi(popSize,1,2);
                         else
                             repErr = 0;
                         end
@@ -486,21 +516,21 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 else
                     while repErr
                         if CurGen.crossPairs(i,1) == CurGen.crossPairs(i,2)
-                            CurGen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                            CurGen.crossPairs(i,:) = randi(popSize,1,2);
                         else
                             repErr = 0;
                         end
                     end
                 end
             end
-            CurGen.crossProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
+            CurGen.crossProbs = rand(popSize/2,strNo);
             if app.PointButton.Value
-                CurGen.crossPoints = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,1);
+                CurGen.crossPoints = randi(bits-1,popSize/2,1);
             else
-                CurGen.crossPoints = zeros(app.PopulationSizeEditField.Value/2,2);
-                for j = 1:app.PopulationSizeEditField.Value/2
+                CurGen.crossPoints = zeros(popSize/2,2);
+                for j = 1:popSize/2
                     while CurGen.crossPoints(j,1) == CurGen.crossPoints(j,2)
-                        genNums = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,2)-1;
+                        genNums = randi(bits-1,popSize/2,2)-1;
                         CurGen.crossPoints(j,1) = max(genNums(j,:));
                         CurGen.crossPoints(j,2) = min(genNums(j,:));
                     end
@@ -546,10 +576,14 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         end
         
         function CurGen = mutate(app,GenNo)
+            popSize = app.PopulationSizeEditField.Value;
+            strNo = app.StopatGenerationEditField.Value;
+            bits = app.BitsPerStringEditField.Value;
+            decPl = app.DecimalPlacesEditField.Value;
             CurGen = app.Gen(GenNo);
-            CurGen.mutPairs = ones(app.PopulationSizeEditField.Value/2,2);
-            for i = 1:app.PopulationSizeEditField.Value/2
-                CurGen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+            CurGen.mutPairs = ones(popSize/2,2);
+            for i = 1:popSize/2
+                CurGen.mutPairs(i,:) = randi(popSize,1,2);
                 repErr = 1;
                 if i ~= 1
                     while repErr
@@ -557,7 +591,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         check2 = CurGen.mutPairs(i,:) == CurGen.mutPairs(1:i-1,[2 1]);
                         check3 = CurGen.mutPairs(i,1) == CurGen.mutPairs(i,2);
                         if (any(all(check1,2)) || any(all(check2,2)) || check3)
-                            CurGen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                            CurGen.mutPairs(i,:) = randi(popSize,1,2);
                         else
                             repErr = 0;
                         end
@@ -565,15 +599,15 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 else
                     while repErr
                         if CurGen.mutPairs(i,1) == CurGen.mutPairs(i,2)
-                            CurGen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                            CurGen.mutPairs(i,:) = randi(popSize,1,2);
                         else
                             repErr = 0;
                         end
                     end
                 end
             end
-            CurGen.mutProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
-            CurGen.mutPoints = randi(app.BitsPerStringEditField.Value,app.PopulationSizeEditField.Value/2,1)-1;
+            CurGen.mutProbs = rand(popSize/2,strNo);
+            CurGen.mutPoints = randi(bits,popSize/2,1)-1;
             CurGen.doMutation = CurGen.mutProbs <= app.MutationProbabilityEditField.Value;
             CurGen.mutatedPop = strings(size(CurGen.crossedPop));
             for i = 1:size(CurGen.doMutation,1)
@@ -584,16 +618,16 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         c = a;
                         a(end-CurGen.mutPoints(i)) = b(end-CurGen.mutPoints(i));
                         b(end-CurGen.mutPoints(i)) = c(end-CurGen.mutPoints(i));
-                        if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                        if str2double(a)*10^-decPl < app.Rng(j,1)
                             CurGen.mutatedPop(i*2-1,j) = string(app.Rng(j,1));
-                        elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                        elseif str2double(a)*10^-decPl > app.Rng(j,2)
                             CurGen.mutatedPop(i*2-1,j) = string(app.Rng(j,2));
                         else
                             CurGen.mutatedPop(i*2-1,j) = string(a);
                         end
-                        if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                        if str2double(b)*10^-decPl < app.Rng(j,1)
                             CurGen.mutatedPop(i*2,j) = string(app.Rng(j,1));
-                        elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                        elseif str2double(b)*10^-decPl > app.Rng(j,2)
                             CurGen.mutatedPop(i*2,j) = string(app.Rng(j,2));
                         else
                             CurGen.mutatedPop(i*2,j) = string(b);
@@ -607,31 +641,35 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         end
         
         function CurGen = evaluate(app,GenNo)
+            popSize = app.PopulationSizeEditField.Value;
+            strNo = app.StopatGenerationEditField.Value;
+            bits = app.BitsPerStringEditField.Value;
             if GenNo == 0
                 CurGen = app.GenZero;
             else
                 CurGen = app.Gen(GenNo);
             end
-            fitFunc = str2func("@("+strjoin("x"+string(1:app.StringsPerChromosomeEditField.Value),',')+")"+app.FunctionEditField.Value); %#ok<NASGU>
-            CurGen.fx = zeros(app.PopulationSizeEditField.Value,1);
+            fitFunc = str2func("@("+strjoin("x"+string(1:strNo),',')+")"+...
+                app.FunctionEditField.Value); %#ok<NASGU>
+            CurGen.fx = zeros(popSize,1);
         
             if app.TypeofValuesDropDown.Value == 1
-                CurGen.denVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
-                CurGen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
-                for i = 1:app.PopulationSizeEditField.Value
-                    for j = 1:app.StringsPerChromosomeEditField.Value
+                CurGen.denVal = zeros(popSize,strNo);
+                CurGen.decVal = zeros(popSize,strNo);
+                for i = 1:popSize
+                    for j = 1:strNo
                         CurGen.denVal(i,j) = bin2dec(CurGen.initPop(i,j));
                         CurGen.decVal(i,j) = app.Rng(j,1) + (app.Rng(j,2)-app.Rng(j,1))*...
-                            CurGen.denVal(i,j)/(2^app.BitsPerStringEditField.Value-1);
+                            CurGen.denVal(i,j)/(2^bits-1);
                     end
                     CurGen.fx(i) = eval("fitFunc("+strjoin(string(CurGen.decVal(i,:)),...
-                    ',')+")");
+                        ',')+")");
                 end
             else
-                CurGen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
-                for i = 1:app.PopulationSizeEditField.Value
-                    for j = 1:app.StringsPerChromosomeEditField.Value
-                        CurGen.decVal(i,j) = str2double(CurGen.initPop(i,j))*10^-app.DecimalPlacesEditField.Value;
+                CurGen.decVal = zeros(popSize,strNo);
+                for i = 1:popSize
+                    for j = 1:strNo
+                        CurGen.decVal(i,j) = str2double(CurGen.initPop(i,j))*10^-decPl;
                     end
                     CurGen.fx(i) = eval("fitFunc("+strjoin(string(CurGen.decVal(i,:)),...
                     ',')+")");
@@ -720,6 +758,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app)
             
+            strNo = app.StringsPerChromosomeEditField.Value;
+            
+            decPlField = app.DecimalPlacesEditField;
+            
+            bits = app.BitsPerStringEditField.Value;
+            
             % Hide the figure while startupFcn executes
             app.GeneticAlgorithmUIFigure.Visible = 'off';
             
@@ -727,23 +771,21 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.TypeofValuesDropDown.ItemsData =  [1 2];
             
             % Set upper limit of decimal places to number of bits
-            bits = app.BitsPerStringEditField.Value;
-            app.DecimalPlacesEditField.Limits = [0 bits];
+            decPlField.Limits = [0 bits];
             
             % Enable setting decimal place if dropdown value is 2 (real)
             % otherwise disable
             if (app.TypeofValuesDropDown.Value == 2)
-                app.DecimalPlacesEditField.Enable = 1;
+                decPlField.Enable = 1;
             else
-                app.DecimalPlacesEditField.Enable = 0;
+                decPlField.Enable = 0;
             end
             
             % Set ranges to default 0-10 values
             if (app.TypeofValuesDropDown.Value == 1)
-                app.Rng = repmat([0 10],app.StringsPerChromosomeEditField.Value,1);
+                app.Rng = repmat([0 10],strNo,1);
             else
-                app.Rng = repmat([0 (10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value],...
-                    app.StringsPerChromosomeEditField.Value,1);
+                app.Rng = repmat([0 (10^bits-1)*10^-decPlField.Value],strNo,1);
             end
             
             % Raise error for Range and Population so that user will have
@@ -754,8 +796,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.MinMaxDropDown.ItemsData =  [1 2];
             
             % Set tooltip for function
-            app.FunctionEditField.Tooltip = "Variables: x1-x"+...
-                string(app.StringsPerChromosomeEditField.Value)+". Operators:  +-*/^";
+            app.FunctionEditField.Tooltip = "Variables: x1-x"+string(strNo)+...
+                ". Operators:  +-*/^";
             
             %Check for any errors if any disable Generate button
             app.checkErr();
@@ -854,8 +896,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.RngPopErr();
             
             % Set tooltip for function
-            app.FunctionEditField.Tooltip = "Variables: x1-x"+...
-                string(app.StringsPerChromosomeEditField.Value)+". Operators:  +-*/^";
+            app.FunctionEditField.Tooltip = "Variables: x1-x"+string(value)+". Operators:  +-*/^";
             
             % Error-check the function
             FunctionEditFieldValueChanged(app, event);
@@ -896,13 +937,16 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Get number of strings
             strNum = app.StringsPerChromosomeEditField.Value;
             
+            bits = app.BitsPerStringEditField.Value;
+            
+            decPl = app.DecimalPlacesEditField.Value;
+            
             % If ranges is not set use default values
             if isempty(app.Rng)
                 if (app.TypeofValuesDropDown.Value == 1)
                     app.Rng = repmat([0 10],strNum,1);
                 else
-                    app.Rng = repmat([0 (10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value],...
-                        strNum,1);
+                    app.Rng = repmat([0 (10^bits-1)*10^-decPl],strNum,1);
                 end
             end
             
@@ -911,8 +955,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 if (app.TypeofValuesDropDown.Value == 1)
                     app.LastRng = repmat([0 10],strNum,1);
                 else
-                    app.LastRng = repmat([0 (10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value],...
-                        strNum,1);
+                    app.LastRng = repmat([0 (10^bits-1)*10^-decPl],strNum,1);
                 end
             end
             
@@ -1052,7 +1095,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             strNum = app.StringsPerChromosomeEditField.Value;
             
             % expr is a regular expression to check the function
-            expr = "[-+]?(?:x["+strjoin(string(1:strNum),'')+"])(?:[+*/^-]x["+strjoin(string(1:strNum),'')+"])*";
+            expr = "[-+]?(?:x["+strjoin(string(1:strNum),'')+"])(?:[+*/^-]x["+...
+                strjoin(string(1:strNum),'')+"])*";
             
             % Check if function matches expr
             [start,last] = regexp(value,expr,'once');
@@ -1098,18 +1142,19 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.FunctionEditField.BackgroundColor = '#EDB120';
                 app.checkErr();
             else
-                app.GenZero = struct('initPop',app.Pop,'denVal',[],'decVal',[],'fx',[],'fit',[],...
-                    'cumFit',[],'selChroms',[],'bestTillNow',"",'bestFitTillNow',[],...
+                app.GenZero = struct('initPop',app.Pop,'denVal',[],'decVal',[],'fx',[],...
+                    'fit',[],'cumFit',[],'selChroms',[],'bestTillNow',"",'bestFitTillNow',[],...
                     'finalPop',[]);
                 
                 app.GenZero = app.evaluate(0);
                 app.GenZero = app.select(0);
                 
-                app.Gen(app.StopatGenerationEditField.Value) = struct('initPop',"",'crossPairs',[],'crossProbs',[],...
-                    'crossPoints',[],'doCross',[],'crossedPop',[],'mutPairs',[],...
-                    'mutProbs',[],'mutPoints',[],'doMutation',[],'mutatedPop',[],...
-                    'denVal',[],'decVal',[],'fx',[],'fit',[],'cumFit',[],'selChroms',[],...
-                    'bestTillNow',"",'bestFitTillNow',[],'finalPop',[]);
+                app.Gen(app.StopatGenerationEditField.Value) = struct('initPop',"",...
+                    'crossPairs',[],'crossProbs',[],'crossPoints',[],'doCross',[],...
+                    'crossedPop',[],'mutPairs',[],'mutProbs',[],'mutPoints',[],...
+                    'doMutation',[],'mutatedPop',[],'denVal',[],'decVal',[],'fx',[],...
+                    'fit',[],'cumFit',[],'selChroms',[],'bestTillNow',"",...
+                    'bestFitTillNow',[],'finalPop',[]);
                 
                 for GenNo = 1:app.StopatGenerationEditField.Value
                     if GenNo == 1
@@ -1185,9 +1230,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create StringsPerChromosomeEditField
             app.StringsPerChromosomeEditField = uieditfield(app.GeneticAlgorithmUIFigure, 'numeric');
-            app.StringsPerChromosomeEditField.LowerLimitInclusive = 'off';
-            app.StringsPerChromosomeEditField.UpperLimitInclusive = 'off';
-            app.StringsPerChromosomeEditField.Limits = [0 Inf];
+            app.StringsPerChromosomeEditField.Limits = [1 Inf];
             app.StringsPerChromosomeEditField.RoundFractionalValues = 'on';
             app.StringsPerChromosomeEditField.ValueDisplayFormat = '%.0f';
             app.StringsPerChromosomeEditField.ValueChangedFcn = createCallbackFcn(app, @StringsPerChromosomeEditFieldValueChanged, true);
@@ -1202,9 +1245,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create BitsPerStringEditField
             app.BitsPerStringEditField = uieditfield(app.GeneticAlgorithmUIFigure, 'numeric');
-            app.BitsPerStringEditField.LowerLimitInclusive = 'off';
-            app.BitsPerStringEditField.UpperLimitInclusive = 'off';
-            app.BitsPerStringEditField.Limits = [0 Inf];
+            app.BitsPerStringEditField.Limits = [1 14];
             app.BitsPerStringEditField.RoundFractionalValues = 'on';
             app.BitsPerStringEditField.ValueDisplayFormat = '%.0f';
             app.BitsPerStringEditField.ValueChangedFcn = createCallbackFcn(app, @BitsPerStringCheck, true);
