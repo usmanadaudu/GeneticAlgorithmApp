@@ -1170,8 +1170,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 end
             end
             
-            % Up next main algorithm!
-            
+            % Up next- Print Ouput
             % To-Do: use uiputfile for filename and directory
             
         end
