@@ -26,7 +26,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         ButtonGroup                    matlab.ui.container.ButtonGroup
         PointButton                    matlab.ui.control.RadioButton
         PointsButton                   matlab.ui.control.RadioButton
-        SetRangesDefault010Button      matlab.ui.control.Button
+        SetRangesButton                matlab.ui.control.Button
         GenerationLabel                matlab.ui.control.Label
         StopatGenerationLabel          matlab.ui.control.Label
         StopatGenerationEditField      matlab.ui.control.NumericEditField
@@ -55,10 +55,184 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
     
     methods (Access = private)
         
+        function cellA = ACell(app)
+            %This function stores each set of ranges in app.Rng as a
+            %string in the output cell array (cellA)
+            cellA = cell(size(app.Rng,1),1);
+            for row = 1:length(cellA)
+                cellA{row} = num2str(app.Rng(row,:));
+            end
+        end
+        
+        function ResetRngVal(app,val,input)
+            % This function sets the values of the ranges as the
+            % default value if val is 1 or to the last valid values
+            % if val is 2
+            value = app.StringsPerChromosomeEditField.Value;
+            if val == 1
+                if (app.TypeofValuesDropDown.Value == 1)
+                    app.Rng = repmat([0 10],strNum,1);
+                else
+                    app.Rng = repmat([0 (10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value],...
+                        strNum,1);
+                end
+            elseif val == 2
+                if size(app.LastRng,1) < value
+                    if (app.TypeofValuesDropDown.Value == 1)
+                        app.Rng = [app.LastRng; repmat([0 10],value-size(app.LastRng,1),1)];
+                    else
+                        app.Rng = [app.LastRng; repmat([0 (10^app.BitsPerStringEditField.Value-1)*...
+                        10^-app.DecimalPlacesEditField.Value],value-size(app.LastRng,1),1)];
+                    end
+                elseif size(app.LastRng,1) > value
+                    app.Rng = app.LastRng(1:value,:);
+                else
+                    app.Rng = app.LastRng;
+                end
+            end
+            
+            % Save the ranges in a cell array
+            cellA = app.ACell();
+            
+            % Output the ranges in the GUI for ranges and make
+            % background white
+            input.Value = cellA;
+            input.BackgroundColor = '#fff';
+        end
+        
+        function checkRngVal(app,input)
+            
+            strNum = app.StringsPerChromosomeEditField.Value;
+                
+            % If input is empty or number of rows is not equal to
+            % number of strings raise error otherwise continue to else
+            if string(input.Value) == ""
+                uialert(uf,'There are no values. There should be '+...
+                    string(strNum)+' sets of ranges','Error')
+                input.BackgroundColor = '#EDB120';
+            elseif size(input.Value,1) ~= strNum
+                uialert(uf,'There are '+string(size(input.Value,1))+...
+                    ' sets of values. There should be '+string(strNum)+...
+                    ' sets of ranges','Error')
+                input.BackgroundColor = '#EDB120';
+            else
+                % Empty 2-column cell array with rows equal to length
+                % of input values
+                cellAScan = cell(size(input.Value,1),2);
+                
+                % expr is a regular expression to check if each line of
+                % input contains exactly two numbers separated by one
+                % or more space characters
+                expr = '([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)';
+                
+                % Error check each line of input. If any error track
+                % with valErr
+                for i = 1:size(input.Value,1)
+                                            
+                    % Remove leading and trailing spaces then check if current line matches expr
+                    [start,last] = regexp(strip(input.Value{i}),expr,'once');
+                    
+                    if isempty(start) && isempty(last)        % current line does not match expr
+                        alertmsg{2,1} = 'min and max should be integers separated by space';
+                        alertmsg{1,1} = 'Input format: min max';
+                        uialert(uf,alertmsg,'Error')
+                        valErr = 1;
+                        input.BackgroundColor = '#EDB120';
+                        break
+                    elseif (start(1) == 1 && last(end) == length(strip(input.Value{i})))        % current line matches expr exactly
+                        % capture the two numbers into respective columns in cellAScan
+                        cellAScan(i,:) = textscan(input.Value{i},'%f %f');
+                        
+                        if ~(cellAScan{i,1} <= cellAScan{i,2}) % first number (min) is greater than the second number (max)
+                            alertmsg = 'Each min should not be greater than the respective max';
+                            uialert(uf,alertmsg,'Error')
+                            valErr = 1;
+                            input.BackgroundColor = '#EDB120';
+                            break
+                        elseif (app.TypeofValuesDropDown.Value == 2 && cellAScan{i,1}<0)
+                            format long
+                            alertmsg = 'Each min should not be lesser than zero';
+                            uialert(uf,alertmsg,'Error')
+                            valErr = 1;
+                            input.BackgroundColor = '#EDB120';
+                            break
+                        elseif (app.TypeofValuesDropDown.Value == 2 ...
+                                && cellAScan{i,2}>(10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value)
+                            format long
+                            alertmsg = "Each max should not be greater than "+string((10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value);
+                            uialert(uf,alertmsg,'Error')
+                            valErr = 1;
+                            input.BackgroundColor = '#EDB120';
+                            break
+                        else % first number (min) is lesser than or equal to the second number (max)
+                            valErr = 0;
+                            input.BackgroundColor = '#fff';
+                        end
+                    else % current line matches expr partly
+                        alertmsg{2,1} = 'min and max should be two integers separated by space';
+                        alertmsg{1,1} = 'Input format: min max';
+                        uialert(uf,alertmsg,'Error')
+                        valErr = 1;
+                        input.BackgroundColor = '#EDB120';
+                        break
+                    end
+                end
+                
+                if ~valErr % if no error occurs
+                    % update the values of the ranges (app.Rng)
+                    app.Rng = cell2mat(cellAScan);
+                    
+                    % change the button background to white
+                    app.SetRangesButton.BackgroundColor = '#fff';
+                    
+                    % discard Range Error if raised
+                    app.Err(app.RngErr) = 0;
+                    
+                    input.BackgroundColor = '#fff';
+                
+                    % If current value for ranges is not the default values
+                    % update app.LastRng to the current values of ranges
+                    if ~isequal(app.Rng,repmat([0 10],strNum,1))
+                        app.LastRng = app.Rng;
+                    end
+                    
+                    %Check for any errors if any disable Generate button
+                    app.checkErr();
+                    
+                    % Remove the * in the button text
+                    app.SetRangesButton.Text = "Set Ranges";
+                    
+                    % Close figure for setting ranges
+                    close(uf);
+                end
+            end
+        end
+        
+        function rngUfDeleteFcn(app)
+            % This function shows the base GUI when the GUI for ranges
+            % is being deleted
+            
+            % Using modal for this second uifigure should be better but
+            % modal is not available in MATLAB R2019b. I want to update
+            % this part when I get a later version of MATLAB
+            app.GeneticAlgorithmUIFigure.Visible = 'on';
+        end
+        
+        function rngUfCloseFcn(app,uf)
+            % This function shows the base GUI when the GUI for ranges
+            % has been deleted
+            
+            % Using modal for this second uifigure should be better but
+            % modal is not available in MATLAB R2019b. I want to update
+            % this part when I get a later version of MATLAB
+            delete(uf);
+            app.GeneticAlgorithmUIFigure.Visible = 'on';
+        end
+        
         function RngPopErr(app)
             
             % Raise error for Range
-            app.SetRangesDefault010Button.BackgroundColor = '#EDB120';
+            app.SetRangesButton.BackgroundColor = '#EDB120';
             app.Err(app.RngErr) = 1;
             
             % Raise error for Population
@@ -115,6 +289,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % to set it
             % app.RngPopErr();
             
+            % Track minMax value with itemsdata
+            app.MinMaxDropDown.ItemsData =  [1 2];
+            
             % Set tooltip for function
             app.FunctionEditField.Tooltip = "Variables: x1-x"+...
                 string(app.StringsPerChromosomeEditField.Value)+". Operators:  +-*/^";
@@ -150,6 +327,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             else
                 app.DecimalPlacesEditField.Enable = 0;
             end
+            
+            % Erase Ranges
+            app.Rng = [];
             
             % Erase Population
             app.Pop = string;
@@ -202,6 +382,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.Rng = app.Rng(1:value,:);
             end
             
+            % Erase Ranges
+            app.Rng = [];
+            
             % Erase Population
             app.Pop = string;
             
@@ -246,8 +429,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.RngPopErr();
         end
 
-        % Button pushed function: SetRangesDefault010Button
-        function SetRangesDefault010ButtonPushed(app, event)
+        % Button pushed function: SetRangesButton
+        function SetRangesButtonPushed(app, event)
             
             % Get number of strings
             strNum = app.StringsPerChromosomeEditField.Value;
@@ -273,15 +456,15 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             end
             
             % Variable for tracking error in this function
-            valErr = 0;
+            %valErr = 0;
             
             % create UI figure (uf) to set ranges but do not show till setup finishes
             uf = uifigure('Name','Ranges','Position',[100 100 560 420], ...
-                'Scrollable','on','DeleteFcn',@(uf,event) ufDeleteFcn(), ...
-                'CloseRequestFcn',@(uf,event) ufCloseFcn(),'Visible','off');
+                'Scrollable','on','DeleteFcn',@(uf,event) app.rngUfDeleteFcn(), ...
+                'CloseRequestFcn',@(uf,event) app.rngUfCloseFcn(uf),'Visible','off');
             
             % Set each line (range) in ranges as a string in cell array cellA
-            cellA = ACell();
+            cellA = app.ACell();
             
             % Input instruction
             labelmsg = sprintf("Input values in each row for the respective strings."+...
@@ -295,17 +478,17 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Default Values button
             uibutton(uf,'push','Text','Use Default Values',....
                 'Position',[336 272 168 22],...
-                'ButtonPushedFcn',@(btn,event) ResetVal(1));
+                'ButtonPushedFcn',@(btn,event) app.ResetRngVal(1,input));
             
             % Use Last Valid Values button
             uibutton(uf,'push','Text','Use Last Valid Values',...
                 'Position',[336 178 168 22],...
-                'ButtonPushedFcn',@(btn,event) ResetVal(2));
+                'ButtonPushedFcn',@(btn,event) app.ResetRngVal(2,input));
             
             % Set Current Values button
             uibutton(uf,'push','Text','Set Current Values',...
                 'Position',[336 84 168 22],'BackgroundColor','#4DBEEE',...
-                'ButtonPushedFcn',@(btn,event) checkVal());
+                'ButtonPushedFcn',@(btn,event) app.checkRngVal(input));
             
             % Center GUI for setting ranges
             movegui(uf,'center')
@@ -317,178 +500,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % Show GUI for setting ranges
             uf.Visible = 'on';
-            
-            function cellA = ACell
-                %This function stores each set of ranges in app.Rng as a
-                %string in the output cell array (cellA)
-                cellA = cell(size(app.Rng,1),1);
-                for row = 1:length(cellA)
-                    cellA{row} = num2str(app.Rng(row,:));
-                end
-            end
-            
-            function ResetVal(val)
-                % This function sets the values of the ranges as the
-                % default value if val is 1 or to the last valid values
-                % if val is 2
-                value = app.StringsPerChromosomeEditField.Value;
-                if val == 1
-                    if (app.TypeofValuesDropDown.Value == 1)
-                        app.Rng = repmat([0 10],strNum,1);
-                    else
-                        app.Rng = repmat([0 (10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value],...
-                            strNum,1);
-                    end
-                elseif val == 2
-                    if size(app.LastRng,1) < value
-                        if (app.TypeofValuesDropDown.Value == 1)
-                            app.Rng = [app.LastRng; repmat([0 10],value-size(app.LastRng,1),1)];
-                        else
-                            app.Rng = [app.LastRng; repmat([0 (10^app.BitsPerStringEditField.Value-1)*...
-                            10^-app.DecimalPlacesEditField.Value],value-size(app.LastRng,1),1)];
-                        end
-                    elseif size(app.LastRng,1) > value
-                        app.Rng = app.LastRng(1:value,:);
-                    else
-                        app.Rng = app.LastRng;
-                    end
-                end
-                
-                % Save the ranges in a cell array
-                cellA = ACell();
-                
-                % Output the ranges in the GUI for ranges and make
-                % background white
-                input.Value = cellA;
-                input.BackgroundColor = '#fff';
-            end
-            
-            function checkVal
-                
-                % If input is empty or number of rows is not equal to
-                % number of strings raise error otherwise continue to else
-                if string(input.Value) == ""
-                    uialert(uf,'There are no values. There should be '+...
-                        string(strNum)+' sets of ranges','Error')
-                    input.BackgroundColor = '#EDB120';
-                elseif size(input.Value,1) ~= strNum
-                    uialert(uf,'There are '+string(size(input.Value,1))+...
-                        ' sets of values. There should be '+string(strNum)+...
-                        ' sets of ranges','Error')
-                    input.BackgroundColor = '#EDB120';
-                else
-                    % Empty 2-column cell array with rows equal to length
-                    % of input values
-                    cellAScan = cell(size(input.Value,1),2);
-                    
-                    % expr is a regular expression to check if each line of
-                    % input contains exactly two numbers separated by one
-                    % or more space characters
-                    expr = '([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)[ ]+([-]*[\d]+\.[\d]*|(?:[-]*[\d]*)?[.]?[\d]+)';
-                    
-                    % Error check each line of input. If any error track
-                    % with valErr
-                    for i = 1:size(input.Value,1)
-                                                
-                        % Remove leading and trailing spaces then check if current line matches expr
-                        [start,last] = regexp(strip(input.Value{i}),expr,'once');
-                        
-                        if isempty(start) && isempty(last)        % current line does not match expr
-                            alertmsg{2,1} = 'min and max should be integers separated by space';
-                            alertmsg{1,1} = 'Input format: min max';
-                            uialert(uf,alertmsg,'Error')
-                            valErr = 1;
-                            input.BackgroundColor = '#EDB120';
-                            break
-                        elseif (start(1) == 1 && last(end) == length(strip(input.Value{i})))        % current line matches expr exactly
-                            % capture the two numbers into respective columns in cellAScan
-                            cellAScan(i,:) = textscan(input.Value{i},'%f %f');
-                            
-                            if ~(cellAScan{i,1} <= cellAScan{i,2}) % first number (min) is greater than the second number (max)
-                                alertmsg = 'Each min should not be greater than the respective max';
-                                uialert(uf,alertmsg,'Error')
-                                valErr = 1;
-                                input.BackgroundColor = '#EDB120';
-                                break
-                            elseif (app.TypeofValuesDropDown.Value == 2 && cellAScan{i,1}<0)
-                                alertmsg = 'Each min should not be lesser than zero';
-                                uialert(uf,alertmsg,'Error')
-                                valErr = 1;
-                                input.BackgroundColor = '#EDB120';
-                                break
-                            elseif (app.TypeofValuesDropDown.Value == 2 ...
-                                    && cellAScan{i,2}>(10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value)
-                                alertmsg = "Each max should not be greater than "+string((10^app.BitsPerStringEditField.Value-1)*10^-app.DecimalPlacesEditField.Value);
-                                uialert(uf,alertmsg,'Error')
-                                valErr = 1;
-                                input.BackgroundColor = '#EDB120';
-                                break
-                            else % first number (min) is lesser than or equal to the second number (max)
-                                valErr = 0;
-                                input.BackgroundColor = '#fff';
-                            end
-                        else % current line matches expr partly
-                            alertmsg{2,1} = 'min and max should be two integers separated by space';
-                            alertmsg{1,1} = 'Input format: min max';
-                            uialert(uf,alertmsg,'Error')
-                            valErr = 1;
-                            input.BackgroundColor = '#EDB120';
-                            break
-                        end
-                    end
-                    
-                    if ~valErr % if no error occurs
-                        % update the values of the ranges (app.Rng)
-                        app.Rng = cell2mat(cellAScan);
-                        
-                        % update LastRng if needed
-                        final();
-                        
-                        % change the button background to white
-                        app.SetRangesDefault010Button.BackgroundColor = '#fff';
-                        
-                        % discard Range Error if raised
-                        app.Err(app.RngErr) = 0;
-                    end
-                end
-            end
-            
-            function final
-                input.BackgroundColor = '#fff';
-                
-                % If current value for ranges is not the default values
-                % update app.LastRng to the current values of ranges
-                if ~isequal(app.Rng,repmat([0 10],strNum,1))
-                    app.LastRng = app.Rng;
-                end
-                
-                %Check for any errors if any disable Generate button
-                app.checkErr();
-                
-                % Close figure for setting ranges
-                close(uf);
-            end
-            
-            function ufDeleteFcn()
-                % This function shows the base GUI when the GUI for ranges
-                % is being deleted
-                
-                % Using modal for this second uifigure should be better but
-                % modal is not available in MATLAB R2019b. I want to update
-                % this part when I get a later version of MATLAB
-                app.GeneticAlgorithmUIFigure.Visible = 'on';
-            end
-            
-            function ufCloseFcn()
-                % This function shows the base GUI when the GUI for ranges
-                % has been deleted
-                
-                % Using modal for this second uifigure should be better but
-                % modal is not available in MATLAB R2019b. I want to update
-                % this part when I get a later version of MATLAB
-                delete(uf);
-                app.GeneticAlgorithmUIFigure.Visible = 'on';
-            end
         end
 
         % Button pushed function: SetinitialPopulationButton
@@ -506,7 +517,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             bitNum = app.BitsPerStringEditField.Value;
             
             % Get the number of decimal places
-            decPl = app.DecimalPlacesEditField.Value;
+            app.DecimalPlacesEditField.Value = app.DecimalPlacesEditField.Value;
             
             % If Population is empty make cellPopOut empty otherwise save
             % each line of the Population as an element in cellPopOut
@@ -550,7 +561,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Random Populatio button
             uibutton(uf,'push','Text','Random Pop.',....
                 'Position',[448 272 112 22],...
-                'ButtonPushedFcn',@(btn,event) ResetVal(1));
+                'ButtonPushedFcn',@(btn,event) app.ResetVal(1));
             
             % Last valid Population button
             uibutton(uf,'push','Text','Last Valid Pop.',...
@@ -596,10 +607,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     else
                         randInts = zeros(chromNum,strNum);
                         for i = 1:strNum
-                            if (10^bitNum-1) <= round(app.Rng(i,2)*10^decPl)
+                            if (10^bitNum-1) <= round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value)
                                 upLim = 10^bitNum-1;
                             else
-                                upLim = round(app.Rng(i,2)*10^decPl);
+                                upLim = round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value);
                             end
                             randInts(:,i) = randi([0 upLim],chromNum,1);
                         end
@@ -683,24 +694,29 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         elseif (start(1) == 1 && last(end) == length(strip(input.Value{i}))) % current line matches expr exactly
                             scanformat = strjoin(repmat("%s",1,strNum));
                             cellPopScan(i,:) = textscan(input.Value{i},scanformat);
-                            for j = 1:size(cellPopScan(i,:),2)
-                                if str2double(cellPopScan{i,j})*10^-decPl < app.Rng(j,1)
-                                    alertmsg = sprintf("Each value should not be lesser than %d",...
-                                        app.Rng(j,1)*10^-decPl);
-                                    uialert(uf,alertmsg,'Error')
-                                    valErr = 1;
-                                    input.BackgroundColor = '#EDB120';
-                                    break
-                                elseif str2double(cellPopScan{i,j})*10^-decPl > app.Rng(j,2)
-                                    alertmsg = sprintf("Each value should not be more than %d",...
-                                        app.Rng(j,2)*10^-decPl);
-                                    uialert(uf,alertmsg,'Error')
-                                    valErr = 1;
-                                    input.BackgroundColor = '#EDB120';
-                                    break
-                                else
-                                    valErr = 0;
-                                    input.BackgroundColor = '#fff';
+                            if type == 1
+                                valErr = 0;
+                                input.BackgroundColor = '#fff';
+                            elseif type == 2
+                                for j = 1:size(cellPopScan(i,:),2)
+                                    if str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                        alertmsg = sprintf("Each value should not be lesser than %d",...
+                                            app.Rng(j,1)*10^-app.DecimalPlacesEditField.Value);
+                                        uialert(uf,alertmsg,'Error')
+                                        valErr = 1;
+                                        input.BackgroundColor = '#EDB120';
+                                        break
+                                    elseif str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                        alertmsg = sprintf("Each value should not be more than %d",...
+                                            app.Rng(j,2)*10^-app.DecimalPlacesEditField.Value);
+                                        uialert(uf,alertmsg,'Error')
+                                        valErr = 1;
+                                        input.BackgroundColor = '#EDB120';
+                                        break
+                                    else
+                                        valErr = 0;
+                                        input.BackgroundColor = '#fff';
+                                    end
                                 end
                             end
                             if valErr
@@ -738,6 +754,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         
                         %Check for any errors if any disable Generate button
                         app.checkErr();
+                        
+                        % Remove the * in the button text
+                        app.SetinitialPopulationButton.Text = "Set Initial Population";
                         
                         % Close the figure
                         close(uf)
@@ -799,29 +818,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.checkErr();
         end
 
-        % Button pushed function: GenerateButton
-        function GenerateButtonPushed(app, event)
-            
-            % If there is Range or Population error show it then disable
-            % Generate button
-            if app.Err(app.RngErr) || app.Err(app.PopErr)
-                app.RngPopErr();    % Show Range or Population error
-                app.checkErr();     % Disable Generate button if any error
-            end
-            
-            % If there is function error show it the disable Generate
-            % button
-            if app.Err(app.FuncErr)
-                app.FunctionEditField.BackgroundColor = '#EDB120';
-                app.checkErr();
-            end
-            
-            % Up next main algorithm!
-            
-            % To-Do: use uiputfile for filename and directory
-            
-        end
-
         % Size changed function: ButtonGroup
         function ButtonGroupSizeChanged(app, event)
             position = app.ButtonGroup.Position;
@@ -834,6 +830,242 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             position = app.ButtonGroup_2.Position;
             app.RolletteWheelButton.Position(1) = round((position(3)-243)/2);
             app.ElitismButton.Position(1) = app.RolletteWheelButton.Position(1)+177;
+        end
+
+        % Button pushed function: GenerateButton
+        function GenerateButtonPushed(app, event)
+            
+            % If there is Range or Population error show it then disable
+            % Generate button
+            if app.Err(app.RngErr) || app.Err(app.PopErr)
+                app.RngPopErr();    % Show Range or Population error
+                app.checkErr();     % Disable Generate button if any error
+            elseif app.Err(app.FuncErr)
+                app.FunctionEditField.BackgroundColor = '#EDB120';
+                app.checkErr();
+            else
+                GenZero = struct('initPop',app.Pop,'denVal',[],'decVal',[],'fx',[],'fit',[],...
+                    'cumFit',[],'selChroms',[],'bestTillNow',"",'bestFitTillNow',[],...
+                    'finalPop',[]);
+                
+                GenZero = evaluate(GenZero);
+                GenZero = select(GenZero,0);
+                
+                Gen(app.StopatGenerationEditField.Value) = struct('initPop',app.Pop,'crossPairs',[],'crossProbs',[],...
+                    'crossPoints',[],'doCross',[],'crossedPop',[],'mutPairs',[],...
+                    'mutProbs',[],'mutPoints',[],'doMutation',[],'mutatedPop',[],...
+                    'denVal',[],'decVal',[],'fx',[],'fit',[],'cumFit',[],'selChroms',[],...
+                    'bestTillNow',"",'bestFitTillNow',[],'finalPop',[]);
+                
+                for GenNo = 1:app.StopatGenerationEditField.Value
+                    if GenNo == 1
+                        Gen(GenNo).initPop = GenZero.finalPop;
+                    else
+                        Gen(GenNo).initPop = Gen(GenNo-1).finalPop;
+                    end
+                    
+                    Gen(GenNo) = cross(Gen(GenNo));
+                    Gen(GenNo) = mutate(Gen(GenNo));
+                    Gen(GenNo) = evaluate(Gen(GenNo));
+                    Gen(GenNo) = select(Gen(GenNo),GenNo);
+                end
+            end
+            
+            function Gen = cross(Gen)
+                Gen.crossPairs = ones(app.PopulationSizeEditField.Value/2,2);
+                for i = 1:app.PopulationSizeEditField.Value/2
+                    Gen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                    repErr = 1;
+                    if i ~= 1
+                        while repErr
+                            check1 = Gen.crossPairs(i,:) == Gen.crossPairs(1:i-1,:);
+                            check2 = Gen.crossPairs(i,1) == Gen.crossPairs(i,2);
+                            if (any(all(check1,2)) || check2)
+                                Gen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                            else
+                                repErr = 0;
+                            end
+                        end
+                    end
+                end
+                Gen.crossProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
+                if app.PointButton.Value
+                    Gen.crossPoints = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,1);
+                else
+                    Gen.crossPoints = zeros(app.PopulationSizeEditField.Value/2,2);
+                    genNums = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,2);
+                    for j = 1:size(genNums,1)
+                        Gen.crossPoints(j,1) = max(genNums(j,:));
+                        Gen.crossPoints(j,2) = min(genNums(j,:));
+                    end
+                end
+                Gen.doCross = Gen.crossProbs <= app.CrossOverProbabilityEditField.Value;
+                Gen.crossedPop = strings(size(Gen.initPop));
+                for i = 1:size(Gen.doCross,1)
+                    for j = 1:size(Gen.doCross,2)
+                        if Gen.doCross(i,j)
+                            a = char(Gen.initPop(Gen.crossPairs(i,1),j));
+                            b = char(Gen.initPop(Gen.crossPairs(i,2),j));
+                            c = a;
+                            if app.PointButton.Value
+                                a(end-Gen.crossPoints(i)+1:end) = b(end-Gen.crossPoints(i)+1:end);
+                                b(end-Gen.crossPoints(i)+1:end) = c(end-Gen.crossPoints(i)+1:end);
+                            else
+                                a(end-Gen.crossPoints(i,1)+1:end-Gen.crossPoints(i,2)) = ...
+                                    b(end-Gen.crossPoints(i)+1:end-Gen.crossPoints(i,2));
+                                b(end-Gen.crossPoints(i)+1:end-Gen.crossPoints(i,2)) = ...
+                                    c(end-Gen.crossPoints(i)+1:end-Gen.crossPoints(i,2));
+                            end
+                            if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                Gen.crossedPop(i*2-1,j) = string(app.Rng(j,1));
+                            elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                Gen.crossedPop(i*2-1,j) = string(app.Rng(j,2));
+                            else
+                                Gen.crossedPop(i*2-1,j) = string(a);
+                            end
+                            if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                Gen.crossedPop(i*2,j) = string(app.Rng(j,1));
+                            elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                Gen.crossedPop(i*2,j) = string(app.Rng(j,2));
+                            else
+                                Gen.crossedPop(i*2,j) = string(b);
+                            end
+                        else
+                            Gen.crossedPop([i*2-1 i*2],j) = ...
+                                Gen.initPop([Gen.crossPairs(i,1) Gen.crossPairs(i,2)],j);
+                        end
+                    end
+                end
+            end
+            
+            function Gen = mutate(Gen)
+                Gen.mutPairs = ones(app.PopulationSizeEditField.Value/2,2);
+                for i = 1:app.PopulationSizeEditField.Value/2
+                    Gen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                    repErr = 1;
+                    if i ~= 1
+                        while repErr
+                            check1 = Gen.mutPairs(i,:) == Gen.mutPairs(1:i-1,:);
+                            check2 = Gen.mutPairs(i,1) == Gen.mutPairs(i,2);
+                            if (any(all(check1,2)) || check2)
+                                Gen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                            else
+                                repErr = 0;
+                            end
+                        end
+                    end
+                end
+                Gen.mutProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
+                Gen.mutPoints = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,1);
+                Gen.doMutation = Gen.mutProbs <= app.MutationProbabilityEditField.Value;
+                Gen.mutatedPop = strings(size(Gen.crossedPop));
+                for i = 1:size(Gen.doMutation,1)
+                    for j = 1:size(Gen.doMutation,2)
+                        if Gen.doMutation(i,j)
+                            a = char(Gen.crossedPop(Gen.crossPairs(i,1),j));
+                            b = char(Gen.crossedPop(Gen.crossPairs(i,2),j));
+                            c = a;
+                            a(Gen.mutPoints(i)) = b(Gen.mutPoints(i));
+                            b(Gen.mutPoints(i)) = c(Gen.mutPoints(i));
+                            if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                Gen.mutatedPop(i*2-1,j) = string(app.Rng(j,1));
+                            elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                Gen.mutatedPop(i*2-1,j) = string(app.Rng(j,2));
+                            else
+                                Gen.mutatedPop(i*2-1,j) = string(a);
+                            end
+                            if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                Gen.mutatedPop(i*2,j) = string(app.Rng(j,1));
+                            elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                Gen.mutatedPop(i*2,j) = string(app.Rng(j,2));
+                            else
+                                Gen.mutatedPop(i*2,j) = string(b);
+                            end
+                        else
+                            Gen.mutatedPop([i*2-1 i*2],j) = ...
+                                crossedPop([Gen.mutPairs(i,1) Gen.mutPairs(i,2)],j);
+                        end
+                    end
+                end
+            end
+            
+            function Gen = evaluate(Gen)
+                fitFunc = str2func("@("+strjoin("x"+string(1:app.StringsPerChromosomeEditField.Value),',')+")"+app.FunctionEditField.Value); %#ok<NASGU>
+                Gen.fx = zeros(app.PopulationSizeEditField.Value,1);
+            
+                if app.TypeofValuesDropDown.Value == 1
+                    Gen.denVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
+                    Gen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
+                    for i = 1:app.PopulationSizeEditField.Value
+                        for j = 1:app.StringsPerChromosomeEditField.Value
+                            Gen.denVal(i,j) = bin2dec(Gen.initPop(i,j));
+                            Gen.decVal(i,j) = app.Rng(j,1) + (app.Rng(j,2)-app.Rng(j,1))*...
+                                Gen.denVal(i,j)/(2^app.BitsPerStringEditField.Value-1);
+                        end
+                        Gen.fx(i) = eval("fitFunc("+strjoin(string(Gen.decVal(i,:)),...
+                        ',')+")");
+                    end
+                else
+                    Gen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
+                    for i = 1:app.PopulationSizeEditField.Value
+                        for j = 1:app.StringsPerChromosomeEditField.Value
+                            Gen.decVal(i,j) = str2double(Gen.initPop(i,j))*10^-app.DecimalPlacesEditField.Value;
+                        end
+                        Gen.fx(i) = eval("fitFunc("+strjoin(string(Gen.decVal(i,:)),...
+                        ',')+")");
+                    end
+                end
+                if app.MinMaxDropDown.Value == 1
+                    Gen.fit = 1./Gen.fx;
+                else
+                    Gen.fit = Gen.fx;
+                end
+            end
+            
+            function CurGen = select(CurGen,GenNo)
+                CurGen.cumFit = cumsum(CurGen.fit);
+                [maxfit,ind] = max(CurGen.fit);
+                if (GenNo==0)
+                    CurGen.bestFitTillNow = maxfit;
+                    CurGen.bestTillNow = CurGen.initPop(ind,:);
+                elseif GenNo >= 2
+                    if maxfit >= Gen(GenNo-1).bestFitTillNow
+                        CurGen.bestFitTillNow = maxfit;
+                        CurGen.bestTillNow = CurGen.initPop(ind,:);
+                    else
+                        CurGen.bestFitTillNow = Gen(GenNo-1).bestFitTillNow;
+                        CurGen.bestTillNow = Gen(GenNo-1).bestTillNow;
+                    end
+                else
+                    if maxfit >= GenZero.bestFitTillNow
+                        CurGen.bestFitTillNow = maxfit;
+                        CurGen.bestTillNow = CurGen.initPop(ind,:);
+                    else
+                        CurGen.bestFitTillNow = GenZero.bestFitTillNow;
+                        CurGen.bestTillNow = GenZero.bestTillNow;
+                    end
+                end
+                CurGen.finalPop = strings(size(CurGen.initPop));
+                [~,sortInd] = sort(CurGen.fit);
+                if (app.RolletteWheelButton.Value || length(sortInd) <= 2)
+                    CurGen.selChroms = randi(length(sortInd),1,length(sortInd));
+                else
+                    if (length(sortInd) == 3 || length(sortInd) == 4)
+                        CurGen.selChroms = ones(1,length(sortInd));
+                        CurGen.selChroms([1 2]) = sortInd([1 end]);
+                        CurGen.selChroms(3:end) = randi(length(sortInd),1,length(sortInd)-2);
+                    else
+                        CurGen.selChroms = ones(1,length(sortInd));
+                        CurGen.selChroms(1:4) = sortInd([1 2 end-1 end]);
+                        CurGen.selChroms(5:end) = randi(length(sortInd),1,length(sortInd)-4);
+                    end
+                end
+                CurGen.finalPop = CurGen.initPop(CurGen.selChroms,:);
+            end
+            % Up next main algorithm!
+            
+            % To-Do: use uiputfile for filename and directory
+            
         end
     end
 
@@ -969,7 +1201,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.SetinitialPopulationButton.ButtonPushedFcn = createCallbackFcn(app, @SetinitialPopulationButtonPushed, true);
             app.SetinitialPopulationButton.BackgroundColor = [1 1 1];
             app.SetinitialPopulationButton.Position = [378 389 204 22];
-            app.SetinitialPopulationButton.Text = 'Set initial Population';
+            app.SetinitialPopulationButton.Text = 'Set initial Population *';
 
             % Create DecimalPlacesEditFieldLabel
             app.DecimalPlacesEditFieldLabel = uilabel(app.GeneticAlgorithmUIFigure);
@@ -1010,12 +1242,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.PointsButton.Text = '2 Points';
             app.PointsButton.Position = [376 5 66 22];
 
-            % Create SetRangesDefault010Button
-            app.SetRangesDefault010Button = uibutton(app.GeneticAlgorithmUIFigure, 'push');
-            app.SetRangesDefault010Button.ButtonPushedFcn = createCallbackFcn(app, @SetRangesDefault010ButtonPushed, true);
-            app.SetRangesDefault010Button.BackgroundColor = [1 1 1];
-            app.SetRangesDefault010Button.Position = [44 389 215 22];
-            app.SetRangesDefault010Button.Text = 'Set Ranges (Default 0-10)';
+            % Create SetRangesButton
+            app.SetRangesButton = uibutton(app.GeneticAlgorithmUIFigure, 'push');
+            app.SetRangesButton.ButtonPushedFcn = createCallbackFcn(app, @SetRangesButtonPushed, true);
+            app.SetRangesButton.BackgroundColor = [1 1 1];
+            app.SetRangesButton.Position = [44 389 215 22];
+            app.SetRangesButton.Text = 'Set Ranges *';
 
             % Create GenerationLabel
             app.GenerationLabel = uilabel(app.GeneticAlgorithmUIFigure);
