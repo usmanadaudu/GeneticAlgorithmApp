@@ -51,16 +51,23 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         LastRng           % Last valid user input for ranges 
         Pop = "";         % Population
         LastPop = "";     % Last valid population
+        GenZero           % Initial generation
+        % Other Generations
+        Gen = struct('initPop',"",'crossPairs',[],'crossProbs',[],...
+                    'crossPoints',[],'doCross',[],'crossedPop',[],'mutPairs',[],...
+                    'mutProbs',[],'mutPoints',[],'doMutation',[],'mutatedPop',[],...
+                    'denVal',[],'decVal',[],'fx',[],'fit',[],'cumFit',[],'selChroms',[],...
+                    'bestTillNow',"",'bestFitTillNow',[],'finalPop',[]);
     end
     
     methods (Access = private)
         
-        function cellA = ACell(app)
+        function cellRng = RngCell(app)
             %This function stores each set of ranges in app.Rng as a
-            %string in the output cell array (cellA)
-            cellA = cell(size(app.Rng,1),1);
-            for row = 1:length(cellA)
-                cellA{row} = num2str(app.Rng(row,:));
+            %string in the output cell array (cellRng)
+            cellRng = cell(size(app.Rng,1),1);
+            for row = 1:length(cellRng)
+                cellRng{row} = num2str(app.Rng(row,:));
             end
         end
         
@@ -69,6 +76,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % default value if val is 1 or to the last valid values
             % if val is 2
             value = app.StringsPerChromosomeEditField.Value;
+            strNum = app.StringsPerChromosomeEditField.Value;
             if val == 1
                 if (app.TypeofValuesDropDown.Value == 1)
                     app.Rng = repmat([0 10],strNum,1);
@@ -92,15 +100,15 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             end
             
             % Save the ranges in a cell array
-            cellA = app.ACell();
+            cellRng = app.RngCell();
             
             % Output the ranges in the GUI for ranges and make
             % background white
-            input.Value = cellA;
+            input.Value = cellRng;
             input.BackgroundColor = '#fff';
         end
         
-        function checkRngVal(app,input)
+        function checkRngVal(app,uf,input)
             
             strNum = app.StringsPerChromosomeEditField.Value;
                 
@@ -227,6 +235,459 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % this part when I get a later version of MATLAB
             delete(uf);
             app.GeneticAlgorithmUIFigure.Visible = 'on';
+        end
+        
+        function cellPop = PopLines(app)
+            %This function stores each row of Populaion in app.Pop as
+            % a string in the output cell array (cellPop)
+            if app.Pop ~= ""
+                cellPop = strings(size(app.Pop,1),1);
+                for i = 1:length(cellPop)
+                    cellPop(i) = strjoin(app.Pop(i,:));
+                end
+            else
+              cellPop = '';
+            end
+        end
+        
+        function ResetPopVal(app,val,input)
+            % This function sets the values of the Population as
+            % random values if val is 1 or to the last valid values
+            % if val is 2
+            
+            % Get the dropdown value 1 (binary) or 2 (real)
+            type = app.TypeofValuesDropDown.Value;
+            
+            % Get the number of chromosomes
+            chromNum = app.PopulationSizeEditField.Value;
+            
+            % Get number of strings
+            strNum = app.StringsPerChromosomeEditField.Value;
+            
+            % Get the number of bits per string
+            bitNum = app.BitsPerStringEditField.Value;
+        
+            if val == 1
+                if type == 1
+                    randInts = randi([0 2^bitNum-1],chromNum,strNum);
+                else
+                    randInts = zeros(chromNum,strNum);
+                    for i = 1:strNum
+                        if (10^bitNum-1) <= round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value)
+                            upLim = 10^bitNum-1;
+                        else
+                            upLim = round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value);
+                        end
+                        randInts(:,i) = randi([0 upLim],chromNum,1);
+                    end
+                end
+                app.Pop = strings(chromNum,strNum);
+                if type == 1
+                    for i=1:strNum
+                        app.Pop(:,i) = string(dec2bin(randInts(:,i),bitNum));
+                    end
+                elseif type == 2
+                    for i=1:chromNum
+                        for j=1:strNum
+                            app.Pop(i,j) = sprintf("%0"+...
+                                string(bitNum)+"d",randInts(i,j));
+                        end
+                    end
+                end
+            elseif val ==2
+                % If no last valid values raise error else make
+                % Population equal to last valid values
+                if app.LastPop == ""
+                    alertmsg{2,1} = 'You can use random population instead';
+                    alertmsg{1,1} = 'No population has been set yet';
+                    uialert(uf,alertmsg,'Error');
+                else
+                    app.Pop = app.LastPop;
+                end
+            end
+            
+            % Save Population in a cell array
+            cellPopOut = app.PopLines();
+            
+            % Output the Population in the GUI for Population
+            input.Value = cellPopOut;
+            input.BackgroundColor = '#fff';
+        end
+        
+        function set(app,uf,input)
+                
+            % Get the dropdown value 1 (binary) or 2 (real)
+            type = app.TypeofValuesDropDown.Value;
+            
+            % Get the number of chromosomes
+            chromNum = app.PopulationSizeEditField.Value;
+            
+            % Get number of strings
+            strNum = app.StringsPerChromosomeEditField.Value;
+            
+            % Get the number of bits per string
+            bitNum = app.BitsPerStringEditField.Value;
+            
+            % If input is empty or number of rows is not equal to
+            % number of strings raise error otherwise continue to else
+            if string(input.Value) == ""
+                uialert(uf,'There are no values. There should be '+...
+                    string(chromNum)+' chromosome populations','Error')
+                input.BackgroundColor = '#EDB120';
+            elseif size(input.Value,1) ~= chromNum
+                uialert(uf,'There are '+string(size(input.Value,1))+...
+                    ' values. There should be '+string(chromNum)+...
+                    ' chromosome Populations','Error')
+                input.BackgroundColor = '#EDB120';
+            else
+                
+                % Empty 2-column cell array with rows equal to length
+                % of input values
+                cellPopScan = cell(size(input.Value,1),strNum);
+                
+                % Set the type and number of digits required according
+                % to type (binary or real) and number of bits
+                if type == 1
+                    digits = "[0-1]{"+string(bitNum)+"}";
+                    labelend = ' of 1s and 0s';
+                elseif type == 2
+                    digits = "\d{"+string(bitNum)+"}";
+                    labelend = '';
+                end
+                
+                % expr is a regular expression for checking the inputs
+                expr = strjoin(repmat(digits,1,strNum),'[ ]+');
+                
+                % Error check each line of input. If any error track
+                % with valErr
+                for i = 1:size(input.Value,1)
+                    % Remove leading and trailing spaces then check if
+                    % current line matches expr
+                    [start,last] = regexp(strip(input.Value{i}),expr,'once');
+                    
+                    if isempty(start) && isempty(last)        % current line does not match expr
+                        alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
+                            "%s\nfor each chromosome (row)",strNum,bitNum,labelend);
+                        uialert(uf,alertmsg,'Error')
+                        valErr = 1;
+                        input.BackgroundColor = '#EDB120';
+                        break
+                    elseif (start(1) == 1 && last(end) == length(strip(input.Value{i}))) % current line matches expr exactly
+                        scanformat = strjoin(repmat("%s",1,strNum));
+                        cellPopScan(i,:) = textscan(input.Value{i},scanformat);
+                        if type == 1
+                            valErr = 0;
+                            input.BackgroundColor = '#fff';
+                        elseif type == 2
+                            for j = 1:size(cellPopScan(i,:),2)
+                                if str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                    alertmsg = sprintf("Each value should not be lesser than %d",...
+                                        app.Rng(j,1)*10^-app.DecimalPlacesEditField.Value);
+                                    uialert(uf,alertmsg,'Error')
+                                    valErr = 1;
+                                    input.BackgroundColor = '#EDB120';
+                                    break
+                                elseif str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                    alertmsg = sprintf("Each value should not be more than %d",...
+                                        app.Rng(j,2)*10^-app.DecimalPlacesEditField.Value);
+                                    uialert(uf,alertmsg,'Error')
+                                    valErr = 1;
+                                    input.BackgroundColor = '#EDB120';
+                                    break
+                                else
+                                    valErr = 0;
+                                    input.BackgroundColor = '#fff';
+                                end
+                            end
+                        end
+                        if valErr
+                            break
+                        end
+                    else    % current line matches expr partly
+                        alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
+                            "%s\nfor each chromosome (row)",strNum,bitNum,labelend);
+                        uialert(uf,alertmsg,'Error')
+                        valErr = 1;
+                        input.BackgroundColor = '#EDB120';
+                        break
+                    end
+                end
+                if ~valErr % if no error occurs
+                    % Update the values of the Population (app.Pop)
+                    app.Pop = strings(chromNum,strNum);
+                    for i = 1:size(cellPopScan,1)
+                        for j = 1:size(cellPopScan,2)
+                            app.Pop(i,j) = string(cellPopScan{i,j});
+                        end
+                    end
+                    
+                    % Set input background to white
+                    input.BackgroundColor = '#fff';
+                    
+                    % Update Last Valid Population (app.LastPop)
+                    app.LastPop = app.Pop;
+                    
+                    % Set button background to white
+                    app.SetinitialPopulationButton.BackgroundColor = '#fff';
+                    
+                    % discard Range Error if raised
+                    app.Err(app.PopErr) = 0;
+                    
+                    %Check for any errors if any disable Generate button
+                    app.checkErr();
+                    
+                    % Remove the * in the button text
+                    app.SetinitialPopulationButton.Text = "Set Initial Population";
+                    
+                    % Close the figure
+                    close(uf)
+                end
+            end
+        end
+        
+        function popUfDeleteFcn(app)
+            % This function shows the base GUI when the GUI for ranges
+            % is being deleted
+            
+            % Using modal for this second uifigure should be better but
+            % modal is not available in MATLAB R2019b. I want to update
+            % this part when I get a later version of MATLAB
+            app.GeneticAlgorithmUIFigure.Visible = 'on';
+        end
+        
+        function popUfCloseFcn(app,uf)
+            % This function shows the base GUI when the GUI for ranges
+            % has been deleted
+            
+            % Using modal for this second uifigure should be better but
+            % modal is not available in MATLAB R2019b. I want to update
+            % this part when I get a later version of MATLAB
+            delete(uf);
+            app.GeneticAlgorithmUIFigure.Visible = 'on';
+        end
+        
+        function CurGen = cross(app,GenNo)
+            CurGen = app.Gen(GenNo);
+            CurGen.crossPairs = ones(app.PopulationSizeEditField.Value/2,2);
+            for i = 1:app.PopulationSizeEditField.Value/2
+                CurGen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                repErr = 1;
+                if i ~= 1
+                    while repErr
+                        check1 = CurGen.crossPairs(i,:) == CurGen.crossPairs(1:i-1,:);
+                        check2 = CurGen.crossPairs(i,:) == CurGen.crossPairs(1:i-1,[2 1]);
+                        check3 = CurGen.crossPairs(i,1) == CurGen.crossPairs(i,2);
+                        if (any(all(check1,2)) || any(all(check2,2)) || check3)
+                            CurGen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                        else
+                            repErr = 0;
+                        end
+                    end
+                else
+                    while repErr
+                        if CurGen.crossPairs(i,1) == CurGen.crossPairs(i,2)
+                            CurGen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                        else
+                            repErr = 0;
+                        end
+                    end
+                end
+            end
+            CurGen.crossProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
+            if app.PointButton.Value
+                CurGen.crossPoints = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,1);
+            else
+                CurGen.crossPoints = zeros(app.PopulationSizeEditField.Value/2,2);
+                for j = 1:app.PopulationSizeEditField.Value/2
+                    while CurGen.crossPoints(j,1) == CurGen.crossPoints(j,2)
+                        genNums = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,2)-1;
+                        CurGen.crossPoints(j,1) = max(genNums(j,:));
+                        CurGen.crossPoints(j,2) = min(genNums(j,:));
+                    end
+                end
+            end
+            CurGen.doCross = CurGen.crossProbs <= app.CrossOverProbabilityEditField.Value;
+            CurGen.crossedPop = strings(size(CurGen.initPop));
+            for i = 1:size(CurGen.doCross,1)
+                for j = 1:size(CurGen.doCross,2)
+                    if CurGen.doCross(i,j)
+                        a = char(CurGen.initPop(CurGen.crossPairs(i,1),j));
+                        b = char(CurGen.initPop(CurGen.crossPairs(i,2),j));
+                        c = a;
+                        if app.PointButton.Value
+                            a(end-CurGen.crossPoints(i)+1:end) = b(end-CurGen.crossPoints(i)+1:end);
+                            b(end-CurGen.crossPoints(i)+1:end) = c(end-CurGen.crossPoints(i)+1:end);
+                        else
+                            a(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2)) = ...
+                                b(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2));
+                            b(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2)) = ...
+                                c(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2));
+                        end
+                        if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                            CurGen.crossedPop(i*2-1,j) = string(app.Rng(j,1));
+                        elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                            CurGen.crossedPop(i*2-1,j) = string(app.Rng(j,2));
+                        else
+                            CurGen.crossedPop(i*2-1,j) = string(a);
+                        end
+                        if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                            CurGen.crossedPop(i*2,j) = string(app.Rng(j,1));
+                        elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                            CurGen.crossedPop(i*2,j) = string(app.Rng(j,2));
+                        else
+                            CurGen.crossedPop(i*2,j) = string(b);
+                        end
+                    else
+                        CurGen.crossedPop([i*2-1 i*2],j) = ...
+                            CurGen.initPop([CurGen.crossPairs(i,1) CurGen.crossPairs(i,2)],j);
+                    end
+                end
+            end
+        end
+        
+        function CurGen = mutate(app,GenNo)
+            CurGen = app.Gen(GenNo);
+            CurGen.mutPairs = ones(app.PopulationSizeEditField.Value/2,2);
+            for i = 1:app.PopulationSizeEditField.Value/2
+                CurGen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                repErr = 1;
+                if i ~= 1
+                    while repErr
+                        check1 = CurGen.mutPairs(i,:) == CurGen.mutPairs(1:i-1,:);
+                        check2 = CurGen.mutPairs(i,:) == CurGen.mutPairs(1:i-1,[2 1]);
+                        check3 = CurGen.mutPairs(i,1) == CurGen.mutPairs(i,2);
+                        if (any(all(check1,2)) || any(all(check2,2)) || check3)
+                            CurGen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                        else
+                            repErr = 0;
+                        end
+                    end
+                else
+                    while repErr
+                        if CurGen.mutPairs(i,1) == CurGen.mutPairs(i,2)
+                            CurGen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
+                        else
+                            repErr = 0;
+                        end
+                    end
+                end
+            end
+            CurGen.mutProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
+            CurGen.mutPoints = randi(app.BitsPerStringEditField.Value,app.PopulationSizeEditField.Value/2,1)-1;
+            CurGen.doMutation = CurGen.mutProbs <= app.MutationProbabilityEditField.Value;
+            CurGen.mutatedPop = strings(size(CurGen.crossedPop));
+            for i = 1:size(CurGen.doMutation,1)
+                for j = 1:size(CurGen.doMutation,2)
+                    if CurGen.doMutation(i,j)
+                        a = char(CurGen.crossedPop(CurGen.mutPairs(i,1),j));
+                        b = char(CurGen.crossedPop(CurGen.mutPairs(i,2),j));
+                        c = a;
+                        a(end-CurGen.mutPoints(i)) = b(end-CurGen.mutPoints(i));
+                        b(end-CurGen.mutPoints(i)) = c(end-CurGen.mutPoints(i));
+                        if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                            CurGen.mutatedPop(i*2-1,j) = string(app.Rng(j,1));
+                        elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                            CurGen.mutatedPop(i*2-1,j) = string(app.Rng(j,2));
+                        else
+                            CurGen.mutatedPop(i*2-1,j) = string(a);
+                        end
+                        if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                            CurGen.mutatedPop(i*2,j) = string(app.Rng(j,1));
+                        elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                            CurGen.mutatedPop(i*2,j) = string(app.Rng(j,2));
+                        else
+                            CurGen.mutatedPop(i*2,j) = string(b);
+                        end
+                    else
+                        CurGen.mutatedPop([i*2-1 i*2],j) = ...
+                            CurGen.crossedPop([CurGen.mutPairs(i,1) CurGen.mutPairs(i,2)],j);
+                    end
+                end
+            end
+        end
+        
+        function CurGen = evaluate(app,GenNo)
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
+            fitFunc = str2func("@("+strjoin("x"+string(1:app.StringsPerChromosomeEditField.Value),',')+")"+app.FunctionEditField.Value); %#ok<NASGU>
+            CurGen.fx = zeros(app.PopulationSizeEditField.Value,1);
+        
+            if app.TypeofValuesDropDown.Value == 1
+                CurGen.denVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
+                CurGen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
+                for i = 1:app.PopulationSizeEditField.Value
+                    for j = 1:app.StringsPerChromosomeEditField.Value
+                        CurGen.denVal(i,j) = bin2dec(CurGen.initPop(i,j));
+                        CurGen.decVal(i,j) = app.Rng(j,1) + (app.Rng(j,2)-app.Rng(j,1))*...
+                            CurGen.denVal(i,j)/(2^app.BitsPerStringEditField.Value-1);
+                    end
+                    CurGen.fx(i) = eval("fitFunc("+strjoin(string(CurGen.decVal(i,:)),...
+                    ',')+")");
+                end
+            else
+                CurGen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
+                for i = 1:app.PopulationSizeEditField.Value
+                    for j = 1:app.StringsPerChromosomeEditField.Value
+                        CurGen.decVal(i,j) = str2double(CurGen.initPop(i,j))*10^-app.DecimalPlacesEditField.Value;
+                    end
+                    CurGen.fx(i) = eval("fitFunc("+strjoin(string(CurGen.decVal(i,:)),...
+                    ',')+")");
+                end
+            end
+            if app.MinMaxDropDown.Value == 1
+                CurGen.fit = 1./CurGen.fx;
+            else
+                CurGen.fit = CurGen.fx;
+            end
+        end
+        
+        function CurGen = select(app,GenNo)
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
+            CurGen.cumFit = cumsum(CurGen.fit);
+            [maxfit,ind] = max(CurGen.fit);
+            if (GenNo==0)
+                CurGen.bestFitTillNow = maxfit;
+                CurGen.bestTillNow = CurGen.initPop(ind,:);
+            elseif GenNo >= 2
+                if maxfit >= app.Gen(GenNo-1).bestFitTillNow
+                    CurGen.bestFitTillNow = maxfit;
+                    CurGen.bestTillNow = CurGen.initPop(ind,:);
+                else
+                    CurGen.bestFitTillNow = app.Gen(GenNo-1).bestFitTillNow;
+                    CurGen.bestTillNow = app.Gen(GenNo-1).bestTillNow;
+                end
+            else
+                if maxfit >= app.GenZero.bestFitTillNow
+                    CurGen.bestFitTillNow = maxfit;
+                    CurGen.bestTillNow = CurGen.initPop(ind,:);
+                else
+                    CurGen.bestFitTillNow = app.GenZero.bestFitTillNow;
+                    CurGen.bestTillNow = app.GenZero.bestTillNow;
+                end
+            end
+            CurGen.finalPop = strings(size(CurGen.initPop));
+            [~,sortInd] = sort(CurGen.fit);
+            if (app.RolletteWheelButton.Value || length(sortInd) <= 2)
+                CurGen.selChroms = randi(length(sortInd),1,length(sortInd));
+            else
+                if (length(sortInd) == 3 || length(sortInd) == 4)
+                    CurGen.selChroms = ones(1,length(sortInd));
+                    CurGen.selChroms([1 2]) = sortInd([1 end]);
+                    CurGen.selChroms(3:end) = randi(length(sortInd),1,length(sortInd)-2);
+                else
+                    CurGen.selChroms = ones(1,length(sortInd));
+                    CurGen.selChroms(1:4) = sortInd([1 2 end-1 end]);
+                    CurGen.selChroms(5:end) = randi(length(sortInd),1,length(sortInd)-4);
+                end
+            end
+            CurGen.finalPop = CurGen.initPop(CurGen.selChroms,:);
         end
         
         function RngPopErr(app)
@@ -463,8 +924,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 'Scrollable','on','DeleteFcn',@(uf,event) app.rngUfDeleteFcn(), ...
                 'CloseRequestFcn',@(uf,event) app.rngUfCloseFcn(uf),'Visible','off');
             
-            % Set each line (range) in ranges as a string in cell array cellA
-            cellA = app.ACell();
+            % Set each line (range) in ranges as a string in cell array cellRng
+            cellRng = app.RngCell();
             
             % Input instruction
             labelmsg = sprintf("Input values in each row for the respective strings."+...
@@ -473,7 +934,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % User input values area
             input = uitextarea(uf,'Position',[56 42 224 294],...
-                'Value',cellA);
+                'Value',cellRng);
             
             % Default Values button
             uibutton(uf,'push','Text','Use Default Values',....
@@ -488,7 +949,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Set Current Values button
             uibutton(uf,'push','Text','Set Current Values',...
                 'Position',[336 84 168 22],'BackgroundColor','#4DBEEE',...
-                'ButtonPushedFcn',@(btn,event) app.checkRngVal(input));
+                'ButtonPushedFcn',@(btn,event) app.checkRngVal(uf,input));
             
             % Center GUI for setting ranges
             movegui(uf,'center')
@@ -506,25 +967,19 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         function SetinitialPopulationButtonPushed(app, event)
             % Get the dropdown value 1 (binary) or 2 (real)
             type = app.TypeofValuesDropDown.Value;
-            
-            % Get the number of chromosomes
-            chromNum = app.PopulationSizeEditField.Value;
-            
+                        
             % Get number of strings
             strNum = app.StringsPerChromosomeEditField.Value;
             
             % Get the number of bits per string
             bitNum = app.BitsPerStringEditField.Value;
             
-            % Get the number of decimal places
-            app.DecimalPlacesEditField.Value = app.DecimalPlacesEditField.Value;
-            
             % If Population is empty make cellPopOut empty otherwise save
             % each line of the Population as an element in cellPopOut
             if app.Pop == ""
                 cellPopOut = '';
             else
-                cellPopOut = PopLines();
+                cellPopOut = app.PopLines();
             end
             
             % If last valid Population is empty make it equal to cellPopOut
@@ -536,8 +991,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % not show till setup finishes
             uf = uifigure('Name','Initial Population','Position',...
                 [100 100 616 420],'Scrollable','on','DeleteFcn',...
-                @(uf,event) ufDeleteFcn(),'CloseRequestFcn',...
-                @(uf,event) ufCloseFcn(),'Visible','off');
+                @(uf,event) app.popUfDeleteFcn(),'CloseRequestFcn',...
+                @(uf,event) app.popUfCloseFcn(uf),'Visible','off');
 
             % Set last part of instruction according to the type (binary or
             % real)
@@ -561,17 +1016,17 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Random Populatio button
             uibutton(uf,'push','Text','Random Pop.',....
                 'Position',[448 272 112 22],...
-                'ButtonPushedFcn',@(btn,event) app.ResetVal(1));
+                'ButtonPushedFcn',@(btn,event) app.ResetPopVal(1,input));
             
             % Last valid Population button
             uibutton(uf,'push','Text','Last Valid Pop.',...
                 'Position',[448 178 112 22],...
-                'ButtonPushedFcn',@(btn,event) ResetVal(2));
+                'ButtonPushedFcn',@(btn,event) app.ResetPopVal(2,input));
             
             % Set button
             uibutton(uf,'push','Text','Set',...
                 'Position',[448 84 112 22],'BackgroundColor','#4DBEEE',...
-                'ButtonPushedFcn',@(btn,event) set());
+                'ButtonPushedFcn',@(btn,event) app.set(uf,input));
             
             % Center GUI for setting Population
             movegui(uf,'center')
@@ -583,207 +1038,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             
             % Show GUI for setting ranges
             uf.Visible = 'on';
-
-            function cellPop = PopLines()
-                %This function stores each row of Populaion in app.Pop as
-                % a string in the output cell array (cellPop)
-                if app.Pop ~= ""
-                    cellPop = strings(size(app.Pop,1),1);
-                    for i = 1:length(cellPop)
-                        cellPop(i) = strjoin(app.Pop(i,:));
-                    end
-                else
-                  cellPop = '';
-                end
-            end
-            
-            function ResetVal(val)
-                % This function sets the values of the Population as
-                % random values if val is 1 or to the last valid values
-                % if val is 2
-                if val == 1
-                    if type == 1
-                        randInts = randi([0 2^bitNum-1],chromNum,strNum);
-                    else
-                        randInts = zeros(chromNum,strNum);
-                        for i = 1:strNum
-                            if (10^bitNum-1) <= round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value)
-                                upLim = 10^bitNum-1;
-                            else
-                                upLim = round(app.Rng(i,2)*10^app.DecimalPlacesEditField.Value);
-                            end
-                            randInts(:,i) = randi([0 upLim],chromNum,1);
-                        end
-                    end
-                    app.Pop = strings(chromNum,strNum);
-                    if type == 1
-                        for i=1:strNum
-                            app.Pop(:,i) = string(dec2bin(randInts(:,i),bitNum));
-                        end
-                    elseif type == 2
-                        for i=1:chromNum
-                            for j=1:strNum
-                                app.Pop(i,j) = sprintf("%0"+...
-                                    string(bitNum)+"d",randInts(i,j));
-                            end
-                        end
-                    end
-                elseif val ==2
-                    % If no last valid values raise error else make
-                    % Population equal to last valid values
-                    if app.LastPop == ""
-                        alertmsg{2,1} = 'You can use random population instead';
-                        alertmsg{1,1} = 'No population has been set yet';
-                        uialert(uf,alertmsg,'Error');
-                    else
-                        app.Pop = app.LastPop;
-                    end
-                end
-                
-                % Save Population in a cell array
-                cellPopOut = PopLines();
-                
-                % Output the Population in the GUI for Population
-                input.Value = cellPopOut;
-                input.BackgroundColor = '#fff';
-            end
-            function set
-                
-                % If input is empty or number of rows is not equal to
-                % number of strings raise error otherwise continue to else
-                if string(input.Value) == ""
-                    uialert(uf,'There are no values. There should be '+...
-                        string(chromNum)+' chromosome populations','Error')
-                    input.BackgroundColor = '#EDB120';
-                elseif size(input.Value,1) ~= chromNum
-                    uialert(uf,'There are '+string(size(input.Value,1))+...
-                        ' values. There should be '+string(chromNum)+...
-                        ' chromosome Populations','Error')
-                    input.BackgroundColor = '#EDB120';
-                else
-                    
-                    % Empty 2-column cell array with rows equal to length
-                    % of input values
-                    cellPopScan = cell(size(input.Value,1),strNum);
-                    
-                    % Set the type and number of digits required according
-                    % to type (binary or real) and number of bits
-                    if type == 1
-                        digits = "[0-1]{"+string(bitNum)+"}";
-                    elseif type == 2
-                        digits = "\d{"+string(bitNum)+"}";
-                    end
-                    
-                    % expr is a regular expression for checking the inputs
-                    expr = strjoin(repmat(digits,1,strNum),'[ ]+');
-                    
-                    % Error check each line of input. If any error track
-                    % with valErr
-                    for i = 1:size(input.Value,1)
-                        % Remove leading and trailing spaces then check if
-                        % current line matches expr
-                        [start,last] = regexp(strip(input.Value{i}),expr,'once');
-                        
-                        if isempty(start) && isempty(last)        % current line does not match expr
-                            alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
-                                "%s\nfor each chromosome (row)",strNum,bitNum,labelend);
-                            uialert(uf,alertmsg,'Error')
-                            valErr = 1;
-                            input.BackgroundColor = '#EDB120';
-                            break
-                        elseif (start(1) == 1 && last(end) == length(strip(input.Value{i}))) % current line matches expr exactly
-                            scanformat = strjoin(repmat("%s",1,strNum));
-                            cellPopScan(i,:) = textscan(input.Value{i},scanformat);
-                            if type == 1
-                                valErr = 0;
-                                input.BackgroundColor = '#fff';
-                            elseif type == 2
-                                for j = 1:size(cellPopScan(i,:),2)
-                                    if str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                                        alertmsg = sprintf("Each value should not be lesser than %d",...
-                                            app.Rng(j,1)*10^-app.DecimalPlacesEditField.Value);
-                                        uialert(uf,alertmsg,'Error')
-                                        valErr = 1;
-                                        input.BackgroundColor = '#EDB120';
-                                        break
-                                    elseif str2double(cellPopScan{i,j})*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                                        alertmsg = sprintf("Each value should not be more than %d",...
-                                            app.Rng(j,2)*10^-app.DecimalPlacesEditField.Value);
-                                        uialert(uf,alertmsg,'Error')
-                                        valErr = 1;
-                                        input.BackgroundColor = '#EDB120';
-                                        break
-                                    else
-                                        valErr = 0;
-                                        input.BackgroundColor = '#fff';
-                                    end
-                                end
-                            end
-                            if valErr
-                                break
-                            end
-                        else    % current line matches expr partly
-                            alertmsg = sprintf("Format: Input %d %d-digit numbers"+...
-                                "%s\nfor each chromosome (row)",strNum,bitNum,labelend);
-                            uialert(uf,alertmsg,'Error')
-                            valErr = 1;
-                            input.BackgroundColor = '#EDB120';
-                            break
-                        end
-                    end
-                    if ~valErr % if no error occurs
-                        % Update the values of the Population (app.Pop)
-                        app.Pop = strings(chromNum,strNum);
-                        for i = 1:size(cellPopScan,1)
-                            for j = 1:size(cellPopScan,2)
-                                app.Pop(i,j) = string(cellPopScan{i,j});
-                            end
-                        end
-                        
-                        % Set input background to white
-                        input.BackgroundColor = '#fff';
-                        
-                        % Update Last Valid Population (app.LastPop)
-                        app.LastPop = app.Pop;
-                        
-                        % Set button background to white
-                        app.SetinitialPopulationButton.BackgroundColor = '#fff';
-                        
-                        % discard Range Error if raised
-                        app.Err(app.PopErr) = 0;
-                        
-                        %Check for any errors if any disable Generate button
-                        app.checkErr();
-                        
-                        % Remove the * in the button text
-                        app.SetinitialPopulationButton.Text = "Set Initial Population";
-                        
-                        % Close the figure
-                        close(uf)
-                    end
-                end
-            end
-            
-            function ufDeleteFcn()
-                % This function shows the base GUI when the GUI for ranges
-                % is being deleted
-                
-                % Using modal for this second uifigure should be better but
-                % modal is not available in MATLAB R2019b. I want to update
-                % this part when I get a later version of MATLAB
-                app.GeneticAlgorithmUIFigure.Visible = 'on';
-            end
-            
-            function ufCloseFcn()
-                % This function shows the base GUI when the GUI for ranges
-                % has been deleted
-                
-                % Using modal for this second uifigure should be better but
-                % modal is not available in MATLAB R2019b. I want to update
-                % this part when I get a later version of MATLAB
-                delete(uf);
-                app.GeneticAlgorithmUIFigure.Visible = 'on';
-            end
         end
 
         % Value changed function: FunctionEditField
@@ -844,14 +1098,14 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 app.FunctionEditField.BackgroundColor = '#EDB120';
                 app.checkErr();
             else
-                GenZero = struct('initPop',app.Pop,'denVal',[],'decVal',[],'fx',[],'fit',[],...
+                app.GenZero = struct('initPop',app.Pop,'denVal',[],'decVal',[],'fx',[],'fit',[],...
                     'cumFit',[],'selChroms',[],'bestTillNow',"",'bestFitTillNow',[],...
                     'finalPop',[]);
                 
-                GenZero = evaluate(GenZero);
-                GenZero = select(GenZero,0);
+                app.GenZero = app.evaluate(0);
+                app.GenZero = app.select(0);
                 
-                Gen(app.StopatGenerationEditField.Value) = struct('initPop',app.Pop,'crossPairs',[],'crossProbs',[],...
+                app.Gen(app.StopatGenerationEditField.Value) = struct('initPop',"",'crossPairs',[],'crossProbs',[],...
                     'crossPoints',[],'doCross',[],'crossedPop',[],'mutPairs',[],...
                     'mutProbs',[],'mutPoints',[],'doMutation',[],'mutatedPop',[],...
                     'denVal',[],'decVal',[],'fx',[],'fit',[],'cumFit',[],'selChroms',[],...
@@ -859,209 +1113,18 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 
                 for GenNo = 1:app.StopatGenerationEditField.Value
                     if GenNo == 1
-                        Gen(GenNo).initPop = GenZero.finalPop;
+                        app.Gen(GenNo).initPop = app.GenZero.finalPop;
                     else
-                        Gen(GenNo).initPop = Gen(GenNo-1).finalPop;
+                        app.Gen(GenNo).initPop = app.Gen(GenNo-1).finalPop;
                     end
                     
-                    Gen(GenNo) = cross(Gen(GenNo));
-                    Gen(GenNo) = mutate(Gen(GenNo));
-                    Gen(GenNo) = evaluate(Gen(GenNo));
-                    Gen(GenNo) = select(Gen(GenNo),GenNo);
+                    app.Gen(GenNo) = app.cross(GenNo);
+                    app.Gen(GenNo) = app.mutate(GenNo);
+                    app.Gen(GenNo) = app.evaluate(GenNo);
+                    app.Gen(GenNo) = app.select(GenNo);
                 end
             end
             
-            function Gen = cross(Gen)
-                Gen.crossPairs = ones(app.PopulationSizeEditField.Value/2,2);
-                for i = 1:app.PopulationSizeEditField.Value/2
-                    Gen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
-                    repErr = 1;
-                    if i ~= 1
-                        while repErr
-                            check1 = Gen.crossPairs(i,:) == Gen.crossPairs(1:i-1,:);
-                            check2 = Gen.crossPairs(i,1) == Gen.crossPairs(i,2);
-                            if (any(all(check1,2)) || check2)
-                                Gen.crossPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
-                            else
-                                repErr = 0;
-                            end
-                        end
-                    end
-                end
-                Gen.crossProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
-                if app.PointButton.Value
-                    Gen.crossPoints = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,1);
-                else
-                    Gen.crossPoints = zeros(app.PopulationSizeEditField.Value/2,2);
-                    genNums = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,2);
-                    for j = 1:size(genNums,1)
-                        Gen.crossPoints(j,1) = max(genNums(j,:));
-                        Gen.crossPoints(j,2) = min(genNums(j,:));
-                    end
-                end
-                Gen.doCross = Gen.crossProbs <= app.CrossOverProbabilityEditField.Value;
-                Gen.crossedPop = strings(size(Gen.initPop));
-                for i = 1:size(Gen.doCross,1)
-                    for j = 1:size(Gen.doCross,2)
-                        if Gen.doCross(i,j)
-                            a = char(Gen.initPop(Gen.crossPairs(i,1),j));
-                            b = char(Gen.initPop(Gen.crossPairs(i,2),j));
-                            c = a;
-                            if app.PointButton.Value
-                                a(end-Gen.crossPoints(i)+1:end) = b(end-Gen.crossPoints(i)+1:end);
-                                b(end-Gen.crossPoints(i)+1:end) = c(end-Gen.crossPoints(i)+1:end);
-                            else
-                                a(end-Gen.crossPoints(i,1)+1:end-Gen.crossPoints(i,2)) = ...
-                                    b(end-Gen.crossPoints(i)+1:end-Gen.crossPoints(i,2));
-                                b(end-Gen.crossPoints(i)+1:end-Gen.crossPoints(i,2)) = ...
-                                    c(end-Gen.crossPoints(i)+1:end-Gen.crossPoints(i,2));
-                            end
-                            if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                                Gen.crossedPop(i*2-1,j) = string(app.Rng(j,1));
-                            elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                                Gen.crossedPop(i*2-1,j) = string(app.Rng(j,2));
-                            else
-                                Gen.crossedPop(i*2-1,j) = string(a);
-                            end
-                            if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                                Gen.crossedPop(i*2,j) = string(app.Rng(j,1));
-                            elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                                Gen.crossedPop(i*2,j) = string(app.Rng(j,2));
-                            else
-                                Gen.crossedPop(i*2,j) = string(b);
-                            end
-                        else
-                            Gen.crossedPop([i*2-1 i*2],j) = ...
-                                Gen.initPop([Gen.crossPairs(i,1) Gen.crossPairs(i,2)],j);
-                        end
-                    end
-                end
-            end
-            
-            function Gen = mutate(Gen)
-                Gen.mutPairs = ones(app.PopulationSizeEditField.Value/2,2);
-                for i = 1:app.PopulationSizeEditField.Value/2
-                    Gen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
-                    repErr = 1;
-                    if i ~= 1
-                        while repErr
-                            check1 = Gen.mutPairs(i,:) == Gen.mutPairs(1:i-1,:);
-                            check2 = Gen.mutPairs(i,1) == Gen.mutPairs(i,2);
-                            if (any(all(check1,2)) || check2)
-                                Gen.mutPairs(i,:) = randi(app.PopulationSizeEditField.Value,1,2);
-                            else
-                                repErr = 0;
-                            end
-                        end
-                    end
-                end
-                Gen.mutProbs = rand(app.PopulationSizeEditField.Value/2,app.StringsPerChromosomeEditField.Value);
-                Gen.mutPoints = randi(app.BitsPerStringEditField.Value-1,app.PopulationSizeEditField.Value/2,1);
-                Gen.doMutation = Gen.mutProbs <= app.MutationProbabilityEditField.Value;
-                Gen.mutatedPop = strings(size(Gen.crossedPop));
-                for i = 1:size(Gen.doMutation,1)
-                    for j = 1:size(Gen.doMutation,2)
-                        if Gen.doMutation(i,j)
-                            a = char(Gen.crossedPop(Gen.crossPairs(i,1),j));
-                            b = char(Gen.crossedPop(Gen.crossPairs(i,2),j));
-                            c = a;
-                            a(Gen.mutPoints(i)) = b(Gen.mutPoints(i));
-                            b(Gen.mutPoints(i)) = c(Gen.mutPoints(i));
-                            if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                                Gen.mutatedPop(i*2-1,j) = string(app.Rng(j,1));
-                            elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                                Gen.mutatedPop(i*2-1,j) = string(app.Rng(j,2));
-                            else
-                                Gen.mutatedPop(i*2-1,j) = string(a);
-                            end
-                            if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                                Gen.mutatedPop(i*2,j) = string(app.Rng(j,1));
-                            elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                                Gen.mutatedPop(i*2,j) = string(app.Rng(j,2));
-                            else
-                                Gen.mutatedPop(i*2,j) = string(b);
-                            end
-                        else
-                            Gen.mutatedPop([i*2-1 i*2],j) = ...
-                                crossedPop([Gen.mutPairs(i,1) Gen.mutPairs(i,2)],j);
-                        end
-                    end
-                end
-            end
-            
-            function Gen = evaluate(Gen)
-                fitFunc = str2func("@("+strjoin("x"+string(1:app.StringsPerChromosomeEditField.Value),',')+")"+app.FunctionEditField.Value); %#ok<NASGU>
-                Gen.fx = zeros(app.PopulationSizeEditField.Value,1);
-            
-                if app.TypeofValuesDropDown.Value == 1
-                    Gen.denVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
-                    Gen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
-                    for i = 1:app.PopulationSizeEditField.Value
-                        for j = 1:app.StringsPerChromosomeEditField.Value
-                            Gen.denVal(i,j) = bin2dec(Gen.initPop(i,j));
-                            Gen.decVal(i,j) = app.Rng(j,1) + (app.Rng(j,2)-app.Rng(j,1))*...
-                                Gen.denVal(i,j)/(2^app.BitsPerStringEditField.Value-1);
-                        end
-                        Gen.fx(i) = eval("fitFunc("+strjoin(string(Gen.decVal(i,:)),...
-                        ',')+")");
-                    end
-                else
-                    Gen.decVal = zeros(app.PopulationSizeEditField.Value,app.StringsPerChromosomeEditField.Value);
-                    for i = 1:app.PopulationSizeEditField.Value
-                        for j = 1:app.StringsPerChromosomeEditField.Value
-                            Gen.decVal(i,j) = str2double(Gen.initPop(i,j))*10^-app.DecimalPlacesEditField.Value;
-                        end
-                        Gen.fx(i) = eval("fitFunc("+strjoin(string(Gen.decVal(i,:)),...
-                        ',')+")");
-                    end
-                end
-                if app.MinMaxDropDown.Value == 1
-                    Gen.fit = 1./Gen.fx;
-                else
-                    Gen.fit = Gen.fx;
-                end
-            end
-            
-            function CurGen = select(CurGen,GenNo)
-                CurGen.cumFit = cumsum(CurGen.fit);
-                [maxfit,ind] = max(CurGen.fit);
-                if (GenNo==0)
-                    CurGen.bestFitTillNow = maxfit;
-                    CurGen.bestTillNow = CurGen.initPop(ind,:);
-                elseif GenNo >= 2
-                    if maxfit >= Gen(GenNo-1).bestFitTillNow
-                        CurGen.bestFitTillNow = maxfit;
-                        CurGen.bestTillNow = CurGen.initPop(ind,:);
-                    else
-                        CurGen.bestFitTillNow = Gen(GenNo-1).bestFitTillNow;
-                        CurGen.bestTillNow = Gen(GenNo-1).bestTillNow;
-                    end
-                else
-                    if maxfit >= GenZero.bestFitTillNow
-                        CurGen.bestFitTillNow = maxfit;
-                        CurGen.bestTillNow = CurGen.initPop(ind,:);
-                    else
-                        CurGen.bestFitTillNow = GenZero.bestFitTillNow;
-                        CurGen.bestTillNow = GenZero.bestTillNow;
-                    end
-                end
-                CurGen.finalPop = strings(size(CurGen.initPop));
-                [~,sortInd] = sort(CurGen.fit);
-                if (app.RolletteWheelButton.Value || length(sortInd) <= 2)
-                    CurGen.selChroms = randi(length(sortInd),1,length(sortInd));
-                else
-                    if (length(sortInd) == 3 || length(sortInd) == 4)
-                        CurGen.selChroms = ones(1,length(sortInd));
-                        CurGen.selChroms([1 2]) = sortInd([1 end]);
-                        CurGen.selChroms(3:end) = randi(length(sortInd),1,length(sortInd)-2);
-                    else
-                        CurGen.selChroms = ones(1,length(sortInd));
-                        CurGen.selChroms(1:4) = sortInd([1 2 end-1 end]);
-                        CurGen.selChroms(5:end) = randi(length(sortInd),1,length(sortInd)-4);
-                    end
-                end
-                CurGen.finalPop = CurGen.initPop(CurGen.selChroms,:);
-            end
             % Up next main algorithm!
             
             % To-Do: use uiputfile for filename and directory
