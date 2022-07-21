@@ -553,18 +553,27 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             b(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2)) = ...
                                 c(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2));
                         end
-                        if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                            CurGen.crossedPop(i*2-1,j) = string(app.Rng(j,1));
-                        elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                            CurGen.crossedPop(i*2-1,j) = string(app.Rng(j,2));
+                        if app.TypeofValuesDropDown.Value == 2
+                            if str2double(a)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                CurGen.crossedPop(i*2-1,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,1)*10^decPl);
+                            elseif str2double(a)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                CurGen.crossedPop(i*2-1,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,2)*10^decPl);
+                            else
+                                CurGen.crossedPop(i*2-1,j) = string(a);
+                            end
+                            if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
+                                CurGen.crossedPop(i*2,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,1)*10^decPl);
+                            elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
+                                CurGen.crossedPop(i*2,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,2)*10^decPl);
+                            else
+                                CurGen.crossedPop(i*2,j) = string(b);
+                            end
                         else
                             CurGen.crossedPop(i*2-1,j) = string(a);
-                        end
-                        if str2double(b)*10^-app.DecimalPlacesEditField.Value < app.Rng(j,1)
-                            CurGen.crossedPop(i*2,j) = string(app.Rng(j,1));
-                        elseif str2double(b)*10^-app.DecimalPlacesEditField.Value > app.Rng(j,2)
-                            CurGen.crossedPop(i*2,j) = string(app.Rng(j,2));
-                        else
                             CurGen.crossedPop(i*2,j) = string(b);
                         end
                     else
@@ -618,18 +627,27 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         c = a;
                         a(end-CurGen.mutPoints(i)) = b(end-CurGen.mutPoints(i));
                         b(end-CurGen.mutPoints(i)) = c(end-CurGen.mutPoints(i));
-                        if str2double(a)*10^-decPl < app.Rng(j,1)
-                            CurGen.mutatedPop(i*2-1,j) = string(app.Rng(j,1));
-                        elseif str2double(a)*10^-decPl > app.Rng(j,2)
-                            CurGen.mutatedPop(i*2-1,j) = string(app.Rng(j,2));
+                        if app.TypeofValuesDropDown.Value == 2
+                            if str2double(a)*10^-decPl < app.Rng(j,1)
+                                CurGen.mutatedPop(i*2-1,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,1)*10^decPl);
+                            elseif str2double(a)*10^-decPl > app.Rng(j,2)
+                                CurGen.mutatedPop(i*2-1,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,2)*10^decPl);
+                            else
+                                CurGen.mutatedPop(i*2-1,j) = string(a);
+                            end
+                            if str2double(b)*10^-decPl < app.Rng(j,1)
+                                CurGen.mutatedPop(i*2,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,1)*10^decPl);
+                            elseif str2double(b)*10^-decPl > app.Rng(j,2)
+                                CurGen.mutatedPop(i*2,j) = sprintf("%0"+...
+                                string(bits)+"d",app.Rng(j,2)*10^decPl);
+                            else
+                                CurGen.mutatedPop(i*2,j) = string(b);
+                            end
                         else
                             CurGen.mutatedPop(i*2-1,j) = string(a);
-                        end
-                        if str2double(b)*10^-decPl < app.Rng(j,1)
-                            CurGen.mutatedPop(i*2,j) = string(app.Rng(j,1));
-                        elseif str2double(b)*10^-decPl > app.Rng(j,2)
-                            CurGen.mutatedPop(i*2,j) = string(app.Rng(j,2));
-                        else
                             CurGen.mutatedPop(i*2,j) = string(b);
                         end
                     else
@@ -644,6 +662,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             popSize = app.PopulationSizeEditField.Value;
             strNo = app.StopatGenerationEditField.Value;
             bits = app.BitsPerStringEditField.Value;
+            decPl = app.DecimalPlacesEditField.Value;
             if GenNo == 0
                 CurGen = app.GenZero;
             else
@@ -1169,6 +1188,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     app.Gen(GenNo) = app.select(GenNo);
                 end
             end
+            
+            save('bin.mat','app.GenZero','app.Gen')
             
             % Up next- Print Ouput
             % To-Do: use uiputfile for filename and directory
