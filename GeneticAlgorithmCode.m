@@ -833,6 +833,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         fprintf(fid,"                    "+...
                             strjoin(repmat("%s",1,size(app.Pop,2))," ")+"\n",app.Pop(2:end,:)');
                     end
+                    fprintf(fid,"\n");
                     
                     app.printhead(fid,"GENERATION 0",2)
                     fprintf(fid,"Initial Population: ");
@@ -843,6 +844,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                                 strjoin(app.GenZero.initPop(r,:)));
                         end
                     end
+                    fprintf(fid,"\n");
                     
                     app.printhead(fid,"EVALUATION",1)
                     app.printeval(fid,app.GenZero)
@@ -943,8 +945,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             CurGen.decVal(row,:));
                     end
                 end
-                fprintf(fid,"\n");
             end
+            fprintf(fid,"\n");
             
             fxWid = 0;
             fitWid = 0;
@@ -1407,6 +1409,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % Up next- Print Ouput
             % To-Do: use uiputfile for filename and directory
             app.print()
+            close(app.GeneticAlgorithmUIFigure)
         end
     end
 
