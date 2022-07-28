@@ -495,7 +495,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         
         function CurGen = cross(app,GenNo)
             popSize = app.PopulationSizeEditField.Value;
-            strNo = app.StopatGenerationEditField.Value;
+            strNo = app.StringsPerChromosomeEditField.Value;
             bits = app.BitsPerStringEditField.Value;
             CurGen = app.Gen(GenNo);
             CurGen.crossPairs = ones(popSize/2,2);
@@ -586,7 +586,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         
         function CurGen = mutate(app,GenNo)
             popSize = app.PopulationSizeEditField.Value;
-            strNo = app.StopatGenerationEditField.Value;
+            strNo = app.StringsPerChromosomeEditField.Value;
             bits = app.BitsPerStringEditField.Value;
             decPl = app.DecimalPlacesEditField.Value;
             CurGen = app.Gen(GenNo);
@@ -660,7 +660,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
         
         function CurGen = evaluate(app,GenNo)
             popSize = app.PopulationSizeEditField.Value;
-            strNo = app.StopatGenerationEditField.Value;
+            strNo = app.StringsPerChromosomeEditField.Value;
             bits = app.BitsPerStringEditField.Value;
             decPl = app.DecimalPlacesEditField.Value;
             if GenNo == 0
@@ -768,6 +768,216 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 % Enable Generate Button
                 app.GenerateButton.Enable = 1;
             end
+        end
+        
+        function print(app)
+            format short
+            option = 'Specify';
+            while isequal(option,'Specify')
+                [file,path] = uiputfile('GeneticAlgorithm.txt');
+                option = '';
+                if isequal(file,0) || isequal(path,0)
+                    option = uiconfirm(app.GeneticAlgorithmUIFigure,'Could not save file, filename was not specified',...
+                        'Error','Options',{'Specify','Cancel'},'Icon','warning','DefaultOption',1);
+                end
+            end
+            if isequal(option,'')
+                filename = fullfile(path,file);
+                [fid,msg] = fopen(filename,'w');
+                if fid == -1
+                    uialert(app.GeneticAlgorithmUIFigure,msg,'Error')
+                else
+                    app.printhead(fid,"GENETIC ALGORITHM",2)
+                    app.printhead(fid,"PARAMETERS",1);
+                    if app.TypeofValuesDropDown.Value == 1
+                        type = "Binary";
+                    else
+                        type = "Real";
+                    end
+                    fprintf(fid,"Type: %s\n",type);
+                    fprintf(fid,"Population Size: %d\n",app.PopulationSizeEditField.Value);
+                    fprintf(fid,"Strings Per Chromosomes: %d\n",app.StringsPerChromosomeEditField.Value);
+                    fprintf(fid,"Bits Per String: %d\n",app.BitsPerStringEditField.Value);
+                    if app.TypeofValuesDropDown.Value == 2
+                        fprintf(fid,"Decimal Places: %d\n",app.DecimalPlacesEditField.Value);
+                    end
+                    if app.MinMaxDropDown.Value == 1
+                        minMaxStr = "Min";
+                    else
+                        minMaxStr = "Max";
+                    end
+                    fprintf(fid,"Function: %s. %s\n",minMaxStr,app.FunctionEditField.Value);
+                    if app.PointButton.Value
+                        crossStr = "1-Point";
+                    else
+                        crossStr = "2-Points";
+                    end
+                    fprintf(fid,"Cross-Over Type: %s Cross-Over\n",crossStr);
+                    if app.RolletteWheelButton.Value
+                        selType = "Rollette Wheel";
+                    else
+                        selType = "Elitism";
+                    end
+                    fprintf(fid,"SelectionType: %s\n",selType);
+                    fprintf(fid,"General Cross-Over Probability: %.2f\n",app.CrossOverProbabilityEditField.Value);
+                    fprintf(fid,"General Mutation Probability: %.2f\n",app.MutationProbabilityEditField.Value);
+                    fprintf(fid,"End at Generation: %d\n",app.StopatGenerationEditField.Value);
+                    fprintf(fid,"Ranges for Strings (Min Max): %d %d\n",...
+                        app.Rng(1,:));
+                    if size(app.Rng,1) >= 2
+                        fprintf(fid,"                              "+"%d %d\n",...
+                            app.Rng(2:end,:)');
+                    end
+                    fprintf(fid,"Initial Population: %s\n",strjoin(app.Pop(1,:)));
+                    if size(app.Pop,1) >= 2
+                        fprintf(fid,"                    "+...
+                            strjoin(repmat("%s",1,size(app.Pop,2))," ")+"\n",app.Pop(2:end,:)');
+                    end
+                    
+                    app.printhead(fid,"GENERATION 0",2)
+                    fprintf(fid,"Initial Population: ");
+                    fprintf(fid,"%s\n",strjoin(app.GenZero.initPop(1,:)));
+                    if size(app.GenZero.initPop,1) >= 2
+                        for r = 2:size(app.GenZero.initPop,1)
+                            fprintf(fid,"%s%s\n",strjoin(repmat(" ",1,20),""),...
+                                strjoin(app.GenZero.initPop(r,:)));
+                        end
+                    end
+                    
+                    app.printhead(fid,"EVALUATION",1)
+                    app.printeval(fid,app.GenZero)
+                    
+                    
+                    
+                    closeFile = fclose(fid);
+                    tryNum = 1;
+                    while closeFile ~= 0 && tryNum <= 5
+                        closeFile = fclose(fid);
+                        tryNum = tryNum+1;
+                    end
+                end
+            end
+            
+            
+            
+        end
+        
+        function printhead(~,fid,head,type)
+            len = strlength(head);
+            if type == 1
+                line1 = "";
+                line2 = sprintf("%s\n\n",strjoin(repmat("-",1,len),''));
+            elseif type == 2
+                line1 = sprintf("%s\n",strjoin(repmat("=",1,len),''));
+                line2 = sprintf("%s\n\n",strjoin(repmat("=",1,len),''));
+            end
+            
+            fprintf(fid,line1);
+            fprintf(fid,head+"\n");
+            fprintf(fid,line2);
+        end
+        
+        function printeval(app,fid,CurGen)
+            if app.TypeofValuesDropDown.Value == 1
+                % This part is not working
+                %fprintf(fid,table(CurGen.denVal,CurGen.decVal,...
+                %    'VariableNames',["Denary Values" "Decoded Values"]));
+                
+                denValWid = 0;
+                decValWid = 0;
+                for row = 1:size(CurGen.denVal,1)
+                    for col = 1:size(CurGen.denVal,2)
+                        if strlength(sprintf("%d",CurGen.denVal(row,col))) > denValWid
+                            denValWid = strlength(sprintf("%d",CurGen.denVal(row,col)));
+                        end
+                        if strlength(sprintf("%.4f",CurGen.decVal(row,col))) > decValWid
+                            decValWid = strlength(sprintf("%.4f",CurGen.decVal(row,col)));
+                        end
+                    end
+                end
+                
+                smallDenVal = false;
+                smallDecVal = false;
+                denValLineWid = size(CurGen.denVal,2)*(denValWid+2)-2;
+                if denValLineWid < 13
+                    denValLineWid = 13;
+                    smallDenVal = true;
+                end
+                
+                decValLineWid = size(CurGen.decVal,2)*(decValWid+2)-2;
+                if decValLineWid < 14
+                    decValLineWid = 14;
+                    smallDecVal = true;
+                end
+                beg = strjoin(repmat(" ",1,floor((denValLineWid-13)/2)),"");
+                mid = strjoin(repmat(" ",1,ceil((denValLineWid-13)/2)),"")+...
+                    "    "+strjoin(repmat(" ",1,floor((decValLineWid-14)/2)),"");
+                fprintf(fid,"%sDenary Values%sDecoded Values\n",beg,mid);
+                fprintf(fid,"%s    %s\n",strjoin(repmat("_",1,denValLineWid),""),...
+                    strjoin(repmat("_",1,decValLineWid),""));
+                
+                denValForm = strjoin(repmat("%"+string(denValWid)+...
+                        "d",1,size(CurGen.denVal,2)),"  ");
+                decValForm = strjoin(repmat("%"+string(decValWid)+...
+                        ".4f",1,size(CurGen.decVal,2)),"  ");
+                if smallDenVal && smallDecVal
+                    for row = 1:size(CurGen.denVal,1)
+                        denLine = sprintf(denValForm,CurGen.denVal(row,:));
+                        decLine = sprintf(decValForm,CurGen.decVal(row,:));
+                        fprintf(fid,"%13s    %14s\n",denLine,decLine);
+                    end                
+                elseif smallDenVal && ~smallDecVal
+                    for row = 1:size(CurGen.denVal,1)
+                        denLine = sprintf(denValForm,CurGen.denVal(row,:));
+                        decLine = sprintf(decValForm,CurGen.decVal(row,:));
+                        fprintf(fid,"%13s    %s\n",denLine,decLine);
+                    end
+                elseif ~smallDenVal && smallDecVal
+                    for row = 1:size(CurGen.denVal,1)
+                        denLine = sprintf(denValForm,CurGen.denVal(row,:));
+                        decLine = sprintf(decValForm,CurGen.decVal(row,:));
+                        fprintf(fid,"%s    %14s\n",denLine,decLine);
+                    end
+                else
+                    for row = 1:size(CurGen.denVal,1)
+                        fprintf(fid,denValForm+"    "+decValForm+"\n",CurGen.denVal(row,:),...
+                            CurGen.decVal(row,:));
+                    end
+                end
+                fprintf(fid,"\n");
+            end
+            
+            fxWid = 0;
+            fitWid = 0;
+            cumFitWid = 0;
+            for row = 1:length(CurGen.fx)
+            if strlength(sprintf("%.2f",CurGen.fx(row))) > fxWid
+                fxWid = strlength(sprintf("%.2f",CurGen.fx(row)));
+            end
+             if strlength(sprintf("%.6f",CurGen.fit(row))) > fitWid
+                fitWid = strlength(sprintf("%.6f",CurGen.fit(row)));
+            end
+            if strlength(sprintf("%.7f",CurGen.cumFit(row))) > cumFitWid
+                cumFitWid = strlength(sprintf("%.7f",CurGen.cumFit(row)));
+            end                
+            end
+            
+            beg = strjoin(repmat(" ",1,floor((fxWid-4)/2)),"");
+            mid1 = strjoin(repmat(" ",1,ceil((fxWid-4)/2)),"")+...
+            strjoin(repmat(" ",1,floor((fitWid-7)/2)),"")+"    ";
+            mid2 = strjoin(repmat(" ",1,ceil((fitWid-7)/2)),"")+...
+            strjoin(repmat(" ",1,floor((cumFitWid-9)/2)),"")+"    ";
+            fprintf(fid,"%sf(x)%sFitness%sCum. Fit.\n",beg,mid1,mid2);
+            fprintf(fid,"%s    %s    %s\n",strjoin(repmat("_",1,fxWid),""),...
+            strjoin(repmat("_",1,fitWid),""),strjoin(repmat("_",1,cumFitWid),""));
+            fxForm = "%"+string(fxWid)+".2f";
+            fitForm = "%"+string(fitWid)+".6f";
+            cumFitForm = "%"+string(cumFitWid)+".7f";
+            for i = 1:size(CurGen.fx,1)
+            fprintf(fid,fxForm+"    "+fitForm+"    "+cumFitForm+"\n",...
+                CurGen.fx(i),CurGen.fit(i),CurGen.cumFit(i));
+            end
+            fprintf(fid,"\n");
         end
     end
 
@@ -1188,12 +1398,10 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     app.Gen(GenNo) = app.select(GenNo);
                 end
             end
-            
-            save('bin.mat','app.GenZero','app.Gen')
-            
+                      
             % Up next- Print Ouput
             % To-Do: use uiputfile for filename and directory
-            
+            app.print()
         end
     end
 
