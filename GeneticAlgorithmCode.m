@@ -1233,9 +1233,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create PopulationSizeEditField
             app.PopulationSizeEditField = uieditfield(app.GeneticAlgorithmUIFigure, 'numeric');
-            app.PopulationSizeEditField.LowerLimitInclusive = 'off';
             app.PopulationSizeEditField.UpperLimitInclusive = 'off';
-            app.PopulationSizeEditField.Limits = [0 Inf];
+            app.PopulationSizeEditField.Limits = [2 Inf];
             app.PopulationSizeEditField.RoundFractionalValues = 'on';
             app.PopulationSizeEditField.ValueDisplayFormat = '%.0f';
             app.PopulationSizeEditField.ValueChangedFcn = createCallbackFcn(app, @PopulationSizeEditFieldValueChanged, true);
@@ -1250,6 +1249,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
 
             % Create StringsPerChromosomeEditField
             app.StringsPerChromosomeEditField = uieditfield(app.GeneticAlgorithmUIFigure, 'numeric');
+            app.StringsPerChromosomeEditField.UpperLimitInclusive = 'off';
             app.StringsPerChromosomeEditField.Limits = [1 Inf];
             app.StringsPerChromosomeEditField.RoundFractionalValues = 'on';
             app.StringsPerChromosomeEditField.ValueDisplayFormat = '%.0f';
