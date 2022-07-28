@@ -846,7 +846,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     
                     app.printhead(fid,"EVALUATION",1)
                     app.printeval(fid,app.GenZero)
-                    
+                    app.printhead(fid,"SELECTION",1)
+                    app.printsel(fid,app.GenZero)
                     
                     
                     closeFile = fclose(fid);
@@ -855,11 +856,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         closeFile = fclose(fid);
                         tryNum = tryNum+1;
                     end
+                    open(filename)
                 end
             end
-            
-            
-            
         end
         
         function printhead(~,fid,head,type)
@@ -978,6 +977,12 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 CurGen.fx(i),CurGen.fit(i),CurGen.cumFit(i));
             end
             fprintf(fid,"\n");
+        end
+        
+        function printsel(~,fid,CurGen)
+            fprintf(fid,"The randomly selected chromosomes are: %s\n",strjoin(string(CurGen.selChroms)));
+            fprintf(fid,"The best chromosome till date is: %s\n",strjoin(CurGen.bestTillNow));
+            fprintf(fid,"with fitness: %s\n",string(CurGen.bestFitTillNow));
         end
     end
 
