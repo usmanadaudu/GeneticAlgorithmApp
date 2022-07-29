@@ -1286,8 +1286,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                             CurGen.decVal(row,:));
                     end
                 end
+                fprintf(fid,"\n");
             end
-            fprintf(fid,"\n");
             
             % Get the width of fx value, fitness and cummulative fitness
             % with the highest width among the values to be printed
