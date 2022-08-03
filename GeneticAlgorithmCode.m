@@ -1108,9 +1108,13 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     
                     % Add a note to join the discussion for this project on
                     % github
-                    
+                    fprintf(fid,"\n\n");
+                    fprintf(fid,"==========================================================================\n");
+                    fprintf(fid,"If you found any bug or have any observation, comment, recommendation etc.\n");
+                    fprintf(fid,"You can join the discussion for this project on gihub with the link below:\n");
+                    fprintf(fid,"https://github.com/usmanadaudu/GeneticAlgorithmApp/discussions");
                     % Print footer
-                    fprintf(fid,"-----------\n");
+                    fprintf(fid,"\n\n-----------\n");
                     fprintf(fid,"End of file");
                     
                     % close file
