@@ -551,6 +551,29 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             app.GeneticAlgorithmUIFigure.Visible = 'on';
         end
         
+        function RngPopErr(app)
+            
+            % Raise error for Range
+            app.SetRangesButton.BackgroundColor = '#EDB120';
+            app.Err(app.RngErr) = 1;
+            
+            % Raise error for Population
+            app.SetinitialPopulationButton.BackgroundColor = '#EDB120';
+            app.Err(app.PopErr) = 1;
+        end
+        
+        function checkErr(app)
+            
+            % Check for errors
+            if any(app.Err)
+                % Disable Generate Button
+                app.GenerateButton.Enable = 0;
+            else
+                % Enable Generate Button
+                app.GenerateButton.Enable = 1;
+            end
+        end
+        
         function CurGen = cross(app,GenNo)
             % This function does the crossover anywhere required
             
@@ -632,9 +655,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 CurGen.crossPoints = zeros(popSize/2,2);
                 for j = 1:popSize/2
                     while CurGen.crossPoints(j,1) == CurGen.crossPoints(j,2)
-                        genNums = randi(bits-1,popSize/2,2)-1;
-                        CurGen.crossPoints(j,1) = max(genNums(j,:));
-                        CurGen.crossPoints(j,2) = min(genNums(j,:));
+                        genNums = randi(bits,1,2)-1;
+                        CurGen.crossPoints(j,1) = max(genNums);
+                        CurGen.crossPoints(j,2) = min(genNums);
                     end
                 end
             end
@@ -666,9 +689,9 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         else
                             % If the type of cross-over is 2-points,
                             % exchange the bits (digits) between the cross
-                            % points. Counting is from the left i.e. if 0 &
-                            % 2 are generated, the last two digits would be
-                            % exchanged likewise if 1 & 4 are generated the
+                            % points. Counting is from the left i.e. if 2 &
+                            % 0 are generated, the last two digits would be
+                            % exchanged likewise if 4 & 1 are generated the
                             % 3 digits before the last digit are exchanged
                             a(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2)) = ...
                                 b(end-CurGen.crossPoints(i,1)+1:end-CurGen.crossPoints(i,2));
@@ -787,8 +810,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % of strings
             CurGen.mutProbs = rand(popSize/2,strNo);
             
-            % Generated a random mutation point between 0 and bits-1
-            CurGen.mutPoints = randi(bits,popSize/2,1)-1;
+            % Generated a random mutation point between 1 and bits
+            CurGen.mutPoints = randi(bits,popSize/2,1);
             
             % Check where the mutation probability generated is lesser
             % than the specified general mutation probability from onset.
@@ -811,8 +834,8 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         
                         % Exchange the bits (digits) from the right up to
                         % the mutation point
-                        a(end-CurGen.mutPoints(i)) = b(end-CurGen.mutPoints(i));
-                        b(end-CurGen.mutPoints(i)) = c(end-CurGen.mutPoints(i));
+                        a(end-CurGen.mutPoints(i)+1) = b(end-CurGen.mutPoints(i)+1);
+                        b(end-CurGen.mutPoints(i)+1) = c(end-CurGen.mutPoints(i)+1);
                         
                         % If the type of value is real, check wether the
                         % values have gone more or less than the max range
@@ -989,14 +1012,14 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     % If the number of chromosomes is 3 or 4 pick the best
                     % and the worst then randomly pick the rest
                     CurGen.selChroms = ones(1,length(sortInd));
-                    CurGen.selChroms([1 2]) = sortInd([1 end]);
+                    CurGen.selChroms([1 2]) = sortInd([end 1]);
                     CurGen.selChroms(3:end) = randi(length(sortInd),1,length(sortInd)-2);
                 else
                     % If the number of chromosomes is more than 4 pick the
                     % best two then the best two then randomly pick the
                     % rest
                     CurGen.selChroms = ones(1,length(sortInd));
-                    CurGen.selChroms(1:4) = sortInd([1 2 end-1 end]);
+                    CurGen.selChroms(1:4) = sortInd([end end-1 1 2]);
                     CurGen.selChroms(5:end) = randi(length(sortInd),1,length(sortInd)-4);
                 end
             end
@@ -1004,29 +1027,6 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             % generation by using the indices of the selected chromosomes
             % to index into the initial chromosome for this generation
             CurGen.finalPop = CurGen.initPop(CurGen.selChroms,:);
-        end
-        
-        function RngPopErr(app)
-            
-            % Raise error for Range
-            app.SetRangesButton.BackgroundColor = '#EDB120';
-            app.Err(app.RngErr) = 1;
-            
-            % Raise error for Population
-            app.SetinitialPopulationButton.BackgroundColor = '#EDB120';
-            app.Err(app.PopErr) = 1;
-        end
-        
-        function checkErr(app)
-            
-            % Check for errors
-            if any(app.Err)
-                % Disable Generate Button
-                app.GenerateButton.Enable = 0;
-            else
-                % Enable Generate Button
-                app.GenerateButton.Enable = 1;
-            end
         end
         
         function print(app)
@@ -1064,80 +1064,54 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     % Print header
                     app.printhead(fid,"GENETIC ALGORITHM",2)
                     
-                    % Print the user specified parameters
-                    app.printhead(fid,"PARAMETERS",1);
-                    if app.TypeofValuesDropDown.Value == 1
-                        type = "Binary";
-                    else
-                        type = "Real";
-                    end
-                    fprintf(fid,"Type: %s\n",type);
-                    fprintf(fid,"Population Size: %d\n",app.PopulationSizeEditField.Value);
-                    fprintf(fid,"Strings Per Chromosomes: %d\n",app.StringsPerChromosomeEditField.Value);
-                    fprintf(fid,"Bits Per String: %d\n",app.BitsPerStringEditField.Value);
-                    if app.TypeofValuesDropDown.Value == 2
-                        fprintf(fid,"Decimal Places: %d\n",app.DecimalPlacesEditField.Value);
-                    end
-                    if app.MinMaxDropDown.Value == 1
-                        minMaxStr = "Min";
-                    else
-                        minMaxStr = "Max";
-                    end
-                    fprintf(fid,"Function: %s. %s\n",minMaxStr,app.FunctionEditField.Value);
-                    if app.PointButton.Value
-                        crossStr = "1-Point";
-                    else
-                        crossStr = "2-Points";
-                    end
-                    fprintf(fid,"Cross-Over Type: %s Cross-Over\n",crossStr);
-                    if app.RolletteWheelButton.Value
-                        selType = "Rollette Wheel";
-                    else
-                        selType = "Elitism";
-                    end
-                    fprintf(fid,"SelectionType: %s\n",selType);
-                    fprintf(fid,"General Cross-Over Probability: %.2f\n",app.CrossOverProbabilityEditField.Value);
-                    fprintf(fid,"General Mutation Probability: %.2f\n",app.MutationProbabilityEditField.Value);
-                    fprintf(fid,"End at Generation: %d\n",app.StopatGenerationEditField.Value);
-                    fprintf(fid,"Ranges for Strings (Min Max): %d %d\n",...
-                        app.Rng(1,:));
-                    if size(app.Rng,1) >= 2
-                        % fprintf prints to each line columnwise in this
-                        % sense so I had to use the transpose of the ranges
-                        fprintf(fid,"                              "+"%d %d\n",...
-                            app.Rng(2:end,:)');
-                    end
-                    fprintf(fid,"Initial Population: %s\n",strjoin(app.Pop(1,:)));
-                    if size(app.Pop,1) >= 2
-                        % fprintf prints to each line columnwise in this
-                        % sense so I had to use the transpose of the
-                        % population
-                        fprintf(fid,"                    "+...
-                            strjoin(repmat("%s",1,size(app.Pop,2))," ")+"\n",app.Pop(2:end,:)');
-                    end
-                    fprintf(fid,"\n");
+                    % Print parameters
+                    app.printparams(fid)
                     
-                    % Print the results of generation zero                    
+                    % % Print heading for generation zero                    
                     app.printhead(fid,"GENERATION 0",2)
-                    fprintf(fid,"Initial Population: ");
-                    fprintf(fid,"%s\n",strjoin(app.GenZero.initPop(1,:)));
-                    if size(app.GenZero.initPop,1) >= 2
-                        for r = 2:size(app.GenZero.initPop,1)
-                            fprintf(fid,"%s%s\n",strjoin(repmat(" ",1,20),""),...
-                                strjoin(app.GenZero.initPop(r,:)));
-                        end
-                    end
-                    fprintf(fid,"\n");
+                    
+                    % Print initial population of generation zero
+                    app.printpop(fid,0,1)
                     
                     % Print evaluation of generation zero
-                    app.printhead(fid,"EVALUATION",1)
-                    app.printeval(fid,app.GenZero)
+                    app.printeval(fid,0)
                     
                     % Print selection of generation zero
-                    app.printhead(fid,"SELECTION",1)
-                    app.printsel(fid,app.GenZero)
+                    app.printsel(fid,0)
                     
-                    % Up-next: Print the cross-over for generations 1-end
+                    % Print population at the end of generation zero
+                    app.printpop(fid,0,2)
+                    
+                    for GenNo = 1:app.StopatGenerationEditField.Value
+                        
+                        % Print heading for generation GenNo
+                        app.printhead(fid,"GENERATION "+string(GenNo),2)
+                        
+                        % Print initial population of generation zero
+                        app.printpop(fid,GenNo,1)
+                        
+                        % Print cross-over of generation GenNo
+                        app.printcross(fid,GenNo)
+                        
+                        % Print mutation of generation GenNo
+                        app.printmut(fid,GenNo)
+                        
+                        % Print evaluation of generation GenNo
+                        app.printeval(fid,GenNo)
+                        
+                        % Print selection of generation GenNo
+                        app.printsel(fid,GenNo)
+                        
+                        % Print population at the end of generation zero
+                        app.printpop(fid,GenNo,2)
+                    end
+                    
+                    % Add a note to join the discussion for this project on
+                    % github
+                    
+                    % Print footer
+                    fprintf(fid,"-----------\n");
+                    fprintf(fid,"End of file");
                     
                     % close file
                     closeFile = fclose(fid);
@@ -1186,10 +1160,183 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             fprintf(fid,line2);
         end
         
-        function printeval(app,fid,CurGen)
+        function printparams(app,fid)
+            
+            % Print the user specified parameters
+            app.printhead(fid,"PARAMETERS",1);
+            if app.TypeofValuesDropDown.Value == 1
+                type = "Binary";
+            else
+                type = "Real";
+            end
+            fprintf(fid,"Type: %s\n",type);
+            fprintf(fid,"Population Size: %d\n",app.PopulationSizeEditField.Value);
+            fprintf(fid,"Strings Per Chromosomes: %d\n",app.StringsPerChromosomeEditField.Value);
+            fprintf(fid,"Bits Per String: %d\n",app.BitsPerStringEditField.Value);
+            if app.TypeofValuesDropDown.Value == 2
+                fprintf(fid,"Decimal Places: %d\n",app.DecimalPlacesEditField.Value);
+            end
+            if app.MinMaxDropDown.Value == 1
+                minMaxStr = "Min";
+            else
+                minMaxStr = "Max";
+            end
+            fprintf(fid,"Function: %s. %s\n",minMaxStr,app.FunctionEditField.Value);
+            if app.PointButton.Value
+                crossStr = "1-Point";
+            else
+                crossStr = "2-Points";
+            end
+            fprintf(fid,"Cross-Over Type: %s Cross-Over\n",crossStr);
+            if app.RolletteWheelButton.Value
+                selType = "Rollette Wheel";
+            else
+                selType = "Elitism";
+            end
+            fprintf(fid,"SelectionType: %s\n",selType);
+            fprintf(fid,"General Cross-Over Probability: %.2f\n",app.CrossOverProbabilityEditField.Value);
+            fprintf(fid,"General Mutation Probability: %.2f\n",app.MutationProbabilityEditField.Value);
+            fprintf(fid,"End at Generation: %d\n",app.StopatGenerationEditField.Value);
+            fprintf(fid,"Ranges for Strings (Min Max): %d %d\n",...
+                app.Rng(1,:));
+            if size(app.Rng,1) >= 2
+                % fprintf prints to each line columnwise in this
+                % sense so I had to use the transpose of the ranges
+                fprintf(fid,"                              "+"%d %d\n",...
+                    app.Rng(2:end,:)');
+            end
+            fprintf(fid,"Initial Population: %s\n",strjoin(app.Pop(1,:)));
+            if size(app.Pop,1) >= 2
+                % fprintf prints to each line columnwise in this
+                % sense so I had to use the transpose of the
+                % population
+                fprintf(fid,"                    "+...
+                    strjoin(repmat("%s",1,size(app.Pop,2))," ")+"\n",app.Pop(2:end,:)');
+            end
+            fprintf(fid,"\n");
+        end
+        
+        function printcross(app,fid,GenNo)
+            
+            stringNo = app.StringsPerChromosomeEditField.Value;
+            
+            bits = app.BitsPerStringEditField.Value;
+            
+            app.printhead(fid,"CROSS-OVER",1)
+            
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
+            
+            for i = 1:size(CurGen.crossPairs,1)
+                fprintf(fid,"Pairs: %d and %d\t\t\t",CurGen.crossPairs(i,:));
+                if app.PointButton.Value
+                    fprintf(fid,"Point: %d\n",CurGen.crossPoints(i));
+                else
+                    fprintf(fid,"Points: %d & %d\n",CurGen.crossPoints(i,:));
+                end
+                form = strjoin(repmat("%.2f",1,length(CurGen.crossProbs(i,:))));
+                fprintf(fid,"Cross-Over Probabilities: "+form+"\n",...
+                    CurGen.crossProbs(i,:));
+                fprintf(fid,strjoin([CurGen.initPop(CurGen.crossPairs(i,1),:),"=>",...
+                    CurGen.crossedPop(i*2-1,:),"\n"]));
+                if ~any(CurGen.doCross(i,:))
+                    fprintf(fid,strjoin(repmat(" ",1,stringNo*(bits+1)),'')+...
+                        "=>"+strjoin(repmat(" ",1,stringNo*(bits+1)),'')+"\n");
+                else
+                    for j = 1:stringNo
+                        if CurGen.doCross(i,j)
+                            if app.PointButton.Value
+                                fprintf(fid,strjoin(repmat(" ",1,bits-CurGen.crossPoints(i)),''));
+                                fprintf(fid,strjoin(repmat("\x2195",1,CurGen.crossPoints(i)),''));
+                                fprintf(fid," ");
+                            else
+                                fprintf(fid,strjoin(repmat(" ",1,bits-CurGen.crossPoints(i,1)),''));
+                                fprintf(fid,strjoin(repmat("\x2195",1,...
+                                    CurGen.crossPoints(i,1)-CurGen.crossPoints(i,2)),''));
+                                fprintf(fid,strjoin(repmat(" ",1,CurGen.crossPoints(i,2)+1),''));
+                            end
+                        else
+                            fprintf(fid,strjoin(repmat(" ",1,bits+1),''));
+                        end
+                    end
+                    fprintf(fid,"=> %s\n",strjoin(repmat(" ",1,stringNo*(bits+1)),''));
+                end
+                fprintf(fid,strjoin([CurGen.initPop(CurGen.crossPairs(i,2),:),"=>",...
+                    CurGen.crossedPop(i*2,:),"\n\n"]));
+            end
+            fprintf(fid,"Population after Cross-over: %s\n",strjoin(CurGen.crossedPop(1,:)));
+            if size(CurGen.crossedPop,1) > 1
+                for i = 2:size(CurGen.crossedPop,1)
+                    fprintf(fid,"                             %s\n",strjoin(CurGen.crossedPop(i,:)));
+                end
+            end
+            fprintf(fid,"\n");
+        end
+        
+        function printmut(app,fid,GenNo)
+            
+            stringNo = app.StringsPerChromosomeEditField.Value;
+            
+            bits = app.BitsPerStringEditField.Value;
+            
+            app.printhead(fid,"MUTATION",1)
+            
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
+            
+            for i = 1:size(CurGen.mutPairs,1)
+                fprintf(fid,"Pairs: %d and %d\t\t\t",CurGen.mutPairs(i,:));
+                fprintf(fid,"Point: %d\n",CurGen.mutPoints(i));
+                form = strjoin(repmat("%.2f",1,length(CurGen.mutProbs(i,:))));
+                fprintf(fid,"Mutation Probabilities: "+form+"\n",...
+                    CurGen.mutProbs(i,:));
+                fprintf(fid,strjoin([CurGen.crossedPop(CurGen.mutPairs(i,1),:),"=>",...
+                    CurGen.mutatedPop(i*2-1,:),"\n"]));
+                if ~any(CurGen.doMutation(i,:))
+                    fprintf(fid,strjoin(repmat(" ",1,stringNo*(bits+1)),'')+...
+                        "=>"+strjoin(repmat(" ",1,stringNo*(bits+1)),'')+"\n");
+                else
+                    for j = 1:stringNo
+                        if CurGen.doMutation(i,j)
+                            fprintf(fid,strjoin(repmat(" ",1,bits-CurGen.mutPoints(i)),''));
+                            fprintf(fid,"\x2195");
+                            fprintf(fid,strjoin(repmat(" ",1,CurGen.mutPoints(i)),''));
+                        else
+                            fprintf(fid,strjoin(repmat(" ",1,bits+1),''));
+                        end
+                    end
+                    fprintf(fid,"=> %s\n",strjoin(repmat(" ",1,stringNo*(bits+1)),''));
+                end
+                fprintf(fid,strjoin([CurGen.crossedPop(CurGen.mutPairs(i,2),:),"=>",...
+                    CurGen.mutatedPop(i*2,:),"\n\n"]));
+            end
+            fprintf(fid,"Population after Mutation: %s\n",strjoin(CurGen.mutatedPop(1,:)));
+            if size(CurGen.mutatedPop,1) > 1
+                for i = 2:size(CurGen.mutatedPop,1)
+                    fprintf(fid,"                           %s\n",strjoin(CurGen.mutatedPop(i,:)));
+                end
+            end
+            fprintf(fid,"\n");
+        end
+        
+        function printeval(app,fid,GenNo)
             % This function prints the evaluation part of generations to
             % text file. All printed texts are spaced for readability when
             % required
+            
+            app.printhead(fid,"EVALUATION",1)
+            
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
             
             % If type is binary print the denary values and the decoded
             % values else do not print both
@@ -1342,17 +1489,65 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
             fprintf(fid,"\n");
         end
         
-        function printsel(~,fid,CurGen)
+        function printsel(app,fid,GenNo)
             % This function prints the selection part of generations
             
-            % Print the selected chromosomes
-            fprintf(fid,"The randomly selected chromosomes are: %s\n",strjoin(string(CurGen.selChroms)));
+            app.printhead(fid,"SELECTION",1)
+            
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
+            
+            if app.RolletteWheelButton.Value || app.PopulationSizeEditField.Value <= 2
+                % Print the selected chromosomes
+                fprintf(fid,"The randomly selected chromosomes are: %s\n",strjoin(string(CurGen.selChroms)));
+            else
+                if app.PopulationSizeEditField.Value == 3
+                    fprintf(fid,"The best and the worst chromosomes respectively are: %s\n",strjoin(string(CurGen.selChroms(1:2))));
+                    fprintf(fid,"The randomly selected chromosome is: %s\n",strjoin(string(CurGen.selChroms(3:end))));
+                elseif app.PopulationSizeEditField.Value == 4
+                    fprintf(fid,"The best and the worst chromosomes respectively are: %s\n",strjoin(string(CurGen.selChroms(1:2))));
+                    fprintf(fid,"The randomly selected chromosomes are: %s\n",strjoin(string(CurGen.selChroms(3:end))));
+                else
+                    fprintf(fid,"The best two and the worst two chromosomes respectively are: %s\n",strjoin(string(CurGen.selChroms(1:4))));
+                    fprintf(fid,"The randomly selected chromosomes are: %s\n",strjoin(string(CurGen.selChroms(5:end))));
+                end
+            end
             
             % Print the best chromosome till date
             fprintf(fid,"The best chromosome till date is: %s\n",strjoin(CurGen.bestTillNow));
             
             % Print the fitness of the best till date
-            fprintf(fid,"with fitness: %s\n",string(CurGen.bestFitTillNow));
+            fprintf(fid,"with fitness: %s\n\n",string(CurGen.bestFitTillNow));
+        end
+        
+        function printpop(app,fid,GenNo,type)
+            if GenNo == 0
+                CurGen = app.GenZero;
+            else
+                CurGen = app.Gen(GenNo);
+            end
+            
+            if type == 1
+                CurPop = CurGen.initPop;
+                heading = "Initial Population: ";
+                beg = strjoin(repmat(" ",1,20),"");
+            else
+                CurPop = CurGen.finalPop;
+                heading = "Final Population: ";
+                beg = strjoin(repmat(" ",1,18),"");
+            end
+            
+            fprintf(fid,heading);
+            fprintf(fid,"%s\n",strjoin(CurPop(1,:)));
+            if size(CurPop,1) >= 2
+                for r = 2:size(CurPop,1)
+                    fprintf(fid,"%s%s\n",beg,strjoin(CurPop(r,:)));
+                end
+            end
+            fprintf(fid,"\n");
         end
     end
 
