@@ -1054,7 +1054,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 
                 % Try creating file or overwrite if it exists
                 filename = fullfile(path,file);
-                [fid,msg] = fopen(filename,'w');
+                [fid,msg] = fopen(filename,'w','n','UTF-8');
                 
                 % If file cannot be open raise error else continue to
                 % printing
@@ -1063,6 +1063,11 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                 else
                     % Print header
                     app.printhead(fid,"GENETIC ALGORITHM",2)
+                    
+                    % Print info
+                    app.printhead(fid,"INFO",1)
+                    fprintf(fid,"This file is encoded in UTF-8, it is best to open in a UTF-8 supported viewer.");
+                    fprintf(fid,"\n\n\n");
                     
                     % Print parameters
                     app.printparams(fid)
@@ -1254,11 +1259,11 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                         if CurGen.doCross(i,j)
                             if app.PointButton.Value
                                 fprintf(fid,strjoin(repmat(" ",1,bits-CurGen.crossPoints(i)),''));
-                                fprintf(fid,strjoin(repmat("\x2195",1,CurGen.crossPoints(i)),''));
+                                fprintf(fid,strjoin(repmat("\x21D5",1,CurGen.crossPoints(i)),''));
                                 fprintf(fid," ");
                             else
                                 fprintf(fid,strjoin(repmat(" ",1,bits-CurGen.crossPoints(i,1)),''));
-                                fprintf(fid,strjoin(repmat("\x2195",1,...
+                                fprintf(fid,strjoin(repmat("\x21D5",1,...
                                     CurGen.crossPoints(i,1)-CurGen.crossPoints(i,2)),''));
                                 fprintf(fid,strjoin(repmat(" ",1,CurGen.crossPoints(i,2)+1),''));
                             end
@@ -1309,7 +1314,7 @@ classdef GeneticAlgorithmCode < matlab.apps.AppBase
                     for j = 1:stringNo
                         if CurGen.doMutation(i,j)
                             fprintf(fid,strjoin(repmat(" ",1,bits-CurGen.mutPoints(i)),''));
-                            fprintf(fid,"\x2195");
+                            fprintf(fid,"\x21D5");
                             fprintf(fid,strjoin(repmat(" ",1,CurGen.mutPoints(i)),''));
                         else
                             fprintf(fid,strjoin(repmat(" ",1,bits+1),''));
